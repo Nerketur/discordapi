@@ -10,7 +10,7 @@ type TokenError string
 type EncodingError string
 type PostError string
 type ReadError string
-type CredsError CredsResp
+type CredsError Creds
 type HTTPError http.Response
 
 
@@ -18,7 +18,7 @@ func (e UnknownError) Error() string {
 	return fmt.Sprintf("error: %s", string(e))
 }
 func (e CredsError) Error() string {
-	login := CredsResp(e)
+	login := Creds(e)
 	if len(login.Email) > 0 {
 		return fmt.Sprintf("token error: %s", login.Email[0])
 	}

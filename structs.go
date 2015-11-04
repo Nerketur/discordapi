@@ -6,10 +6,6 @@ import (
 )
 
 type Creds struct{
-	Email    string `json:"email"`
-	Pass     string `json:"password"`
-}
-type CredsResp struct{
 	Email    []string `json:"email"`
 	Pass     []string `json:"password"`
 	Token    string `json:"token,omitempty"`
@@ -23,7 +19,11 @@ type Discord struct{
 
 /////////////////////////////
 
-type MessageSend struct{
+//Only reason not to remove this is its used evey time we create a message.
+//Theoretically, we could use Message instead, and have the other fields of
+//the struct set to omit from the json if empty, but that would just make
+//everything annoying to read, so this stays seperate for now.
+type MessageSend struct{ 
 	Content  string   `json:"content"`
 	Mentions []string `json:"mentions"`
 	Nonce    string   `json:"nonce"`
@@ -101,7 +101,7 @@ type Attachment struct{
 */
 
 type Message struct{
-	Nonce       string         `json:"nonce,omitempty"`
+	Nonce       string         `json:"nonce,omitempty"` //only used when sending messages
 	Attachments []Attachment   `json:"attachments"`
 	Tts         bool           `json:"tts"` 
 	Embeds      []Embed        `json:"embeds"`

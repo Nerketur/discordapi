@@ -6,15 +6,18 @@ import (
 )
 
 func Login(email, pass string) (Discord, error) {
-	client := Discord{
+	client := Discord{ // only created once per client.
 		Client: &http.Client{ },
 		LoggingIn: true,
 	}
-	req := Creds{
-			Email: email,
-			Pass: pass,
+	req := struct{ // no need to save this struct as its really only ever used ONCE per client.
+		Email string `json:"email"`
+		Pass  string `json:"password"`
+	}{
+		Email: email,
+		Pass: pass,
 	}
-	resp := CredsResp{}
+	resp := Creds{}
 	err := client.Post(LoginURL, req, &resp)
 	if err != nil {
 		return client, err
@@ -28,10 +31,7 @@ func Login(email, pass string) (Discord, error) {
 	return client, nil
 }
 func (c Discord) Logout() error {
-	type Req struct{
-		Token string `json:"token"`
-	}
-	request := Req{Token: c.Token}
+	request := struct{Token string `json:"token"`}{Token: c.Token}
 	err := c.Post(LogoutURL, request, nil)
 	if err != nil {
 		return err
