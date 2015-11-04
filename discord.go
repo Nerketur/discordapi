@@ -19,6 +19,7 @@ func Login(email, pass string) (Discord, error) {
 	if err != nil {
 		return client, err
 	}
+	
 	client.Token = resp.Token
 	if client.Token == "" {
 		return client, CredsError(resp)
@@ -27,7 +28,10 @@ func Login(email, pass string) (Discord, error) {
 	return client, nil
 }
 func (c Discord) Logout() error {
-	request := TokenStr{Token: c.Token}
+	type Req struct{
+		Token string `json:"token"`
+	}
+	request := Req{Token: c.Token}
 	err := c.Post(LogoutURL, request, nil)
 	if err != nil {
 		return err

@@ -6,24 +6,27 @@ import (
 	"bytes"
 	"net/http"
 	"encoding/json"
-	"os"
+	//"os"
 )
 
 const (
-	LoginURL = "https://discordapp.com/api/auth/login"
-	LogoutURL = "https://discordapp.com/api/auth/logout"
-	ChanMsgURL = "https://discordapp.com/api/channels/%s/messages"
-	MsgURL = "https://discordapp.com/api/channels/%s/messages/%s" //channel ID, message ID
+	APIURL = "https://discordapp.com/api"
+	LoginURL = APIURL + "/auth/login"
+	LogoutURL = APIURL + "/auth/logout"
+	ChanMsgsURL = APIURL + "/channels/%s/messages" // chanID
+	MsgURL = ChanMsgsURL + "/%s" //channel ID, message ID
+	MsgAckURL = MsgURL + "/ack" //channel ID, message ID
 )
 
 func (c Discord) Send(method, url string, data, want interface{}) error {
+	//note data and want are interfaces, so theoreticaly any object can be sent via JSON.
+	//We don't have to worry about it, as an error will propogate if we send something unmarshalable
 	if c.Token == "" && !c.LoggingIn { // not logged in or logging in
 		return TokenError("Not logged in!")
 	}
-	var req *http.Request
-	var err error
+	var req *http.Request // important to define it before using
+	var err error // define before use so we can use it later
 	if data != nil {
-		//fmt.Println("data not nil")
 
 		b, err := json.Marshal(data)
 		if err != nil {
@@ -36,49 +39,33 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 			return UnknownError(fmt.Sprintf("%s", err))
 		}
 	} else {
-		//fmt.Println("data nil")
 		req, err = http.NewRequest(method, url, nil)
 		if err != nil {
 			return UnknownError(fmt.Sprintf("%s", err))
 		}
 	}
-	//return UnknownError("Testing!")
+	//err outside if would cause weird thing where err isn't populated
 	if req == nil {
-		return UnknownError("Why is req nil???")
+		return UnknownError("Why is req nil???") // should never happen
 	}
 	if c.Token != "" {
-		//fmt.Println("adding token")
 		req.Header.Add("Authorization", c.Token)
 	}
 	req.Header.Add("Content-Type", "application/json; charset=UTF-8")
 	resp, err := c.Client.Do(req) // at this point, bytes buffer is closed if needed
-	defer resp.Body.Close()
-	if err != nil {
-		return PostError(fmt.Sprintf("%s", err))
+	if err != nil { //if theres an err, body couldbe nil
+		return PostError(fmt.Sprintf("%s", err)) // body is nil here
+	}
+	defer resp.Body.Close() //after so panic wont occur for nil body
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return HTTPError(*resp)
 	}
 	
-	var raw []byte
-	if resp.ContentLength > 0 {
-		raw = make([]byte, resp.ContentLength)
-	} else {
-		raw = make([]byte, 1024)
-	}
-	num, err := resp.Body.Read(raw)
-	if err == io.EOF {
-		//reached the end, ignore.
-	} else if err != nil {
-		return ReadError(fmt.Sprintf("%s", err))
-	}
-	raw = raw[:num]
-	os.Stdout.Write(raw)
-	os.Stdout.Write([]byte{10})
-	
-	//loginResp := CredsResp{}
-	//fmt.Println("before unmarshal")
+	var buff bytes.Buffer
+	io.Copy(&buff, resp.Body)
 	
 	if want != nil {
-		err = json.Unmarshal(raw, &want)
-		//fmt.Println("after unmarshal")
+		err = json.Unmarshal(buff.Bytes(), want)
 		if err != nil {
 			return EncodingError(fmt.Sprintf("from-json:%s", err))
 		}
