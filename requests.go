@@ -11,11 +11,47 @@ import (
 
 const (
 	APIURL = "https://discordapp.com/api"
-	LoginURL = APIURL + "/auth/login"
-	LogoutURL = APIURL + "/auth/logout"
-	ChanMsgsURL = APIURL + "/channels/%s/messages" // chanID
-	MsgURL = ChanMsgsURL + "/%s" //channel ID, message ID
-	MsgAckURL = MsgURL + "/ack" //channel ID, message ID
+		AuthURL = APIURL  + "/auth"
+			LoginURL = AuthURL  + "/login" //post
+			LogoutURL = AuthURL + "/logout" //post
+			RegisterURL = AuthURL + "/register"
+			VerifyURL = AuthURL + "/verify"
+				VerifyResendURL = VerifyURL + "/resend"
+			ForgotURL = AuthURL + "/forgot"
+			ResetURL = AuthURL + "/reset"
+	
+		InviteURL = APIURL + "/invite/%s" //invite ID (get forinfo, post to accept)
+		
+		GuildsURL = APIURL + "/guilds" //get for list, post for new, patch for edit)
+			GuildIDURL = GuildsURL + "/%s" //guild (server) ID
+				GuildBansURL = GuildIDURL + "/bans"
+				GuildMembersURL = GuildIDURL + "/members" // get
+				GuildRolesURL = GuildIDURL + "/roles"     // get
+				GuildChansURL = GuildIDURL + "/channels"  // get
+		
+		ChansURL                  = APIURL  + "/channels" // chanID
+			ChanIDURL             = ChansURL + "/%s" // chanID
+				ChanMsgsURL       = ChanIDURL + "/messages" // chanID (get)
+					MsgURL        = ChanMsgsURL + "/%s" //channel ID, message ID (Patch edit, delete del)
+						MsgAckURL = MsgURL + "/ack" //channel ID, message ID (Post)
+				ChanInviteURL     = ChanIDURL + "/invites" // chanID
+				ChanTypingURL     = ChanIDURL + "/typing" // chanID (post only)
+				ChanPermsURL      = ChanIDURL + "/permissions" // chanID
+		
+		UsersURL = APIURL + "/users" //invite ID
+			UserIDURL = UsersURL + "/%s" // user ID
+				UserChansURL = UserIDURL + "/channels" //(get chans)
+				UserGuildsURL = UserIDURL + "/guilds" // get
+				UserAvatarsURL = UserIDURL + "/avatars" // get
+					UserAvatarIDURL = UserAvatarsURL + "/%s" // avatar ID
+			MyURL = UsersURL + "/@me"
+				MySettingsURL = MyURL + "/settings" // get
+				MyDevicesURL = MyURL + "/devices" // get
+				MyConnectionsURL = MyURL + "/connections" // get
+
+				
+	
+	
 )
 
 func (c Discord) Send(method, url string, data, want interface{}) error {
@@ -30,7 +66,7 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 
 		b, err := json.Marshal(data)
 		if err != nil {
-			return EncodingError(fmt.Sprintf("to-json:%s", err))
+			return EncodingToError(fmt.Sprintf("%s", err))
 		}
 		//os.Stdout.Write(b)
 		//os.Stdout.Write([]byte{10})
@@ -57,23 +93,26 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 		return PostError(fmt.Sprintf("%s", err)) // body is nil here
 	}
 	defer resp.Body.Close() //after so panic wont occur for nil body
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return HTTPError(*resp)
-	}
+	
+	//if resp.StatusCode < 200 || resp.StatusCode > 299 {
+	//	return HTTPError(*resp)
+	//}
+	
+	//on second thought, let the caller handle HTTP stuff
 	
 	var buff bytes.Buffer
 	io.Copy(&buff, resp.Body)
 	
 	if want != nil {
 		err = json.Unmarshal(buff.Bytes(), want)
+		//os.Stdout.Write(buff.Bytes())
+		//os.Stdout.Write([]byte{10})
+		
 		if err != nil {
-			return EncodingError(fmt.Sprintf("from-json:%s", err))
+			return EncodingFromError(fmt.Sprintf("%s", err))
 		}
 	}
 	
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return HTTPError(*resp)
-	}
 	c.LoggingIn = false
 	return nil
 }

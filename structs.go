@@ -15,6 +15,8 @@ type Discord struct{
 	Client    *http.Client
 	Token     string
 	LoggingIn bool
+	MyGuilds  []Guild
+	MyChans   []Channel
 }
 
 /////////////////////////////
@@ -29,76 +31,20 @@ type MessageSend struct{
 	Nonce    string   `json:"nonce"`
 	Tts      bool     `json:"tts"`
 }
-type User struct{
+
+type Member struct{
+	Joined time.Time `json:"joined_at"`
+	Deaf   bool      `json:"deaf"`
+	User   User      `json:"user"`
+	Roles  []string  `json:"roles"`
+	Mute   bool      `json:"mute"`
+}
+	type User struct{
 		Username      string `json:"username"`
 		Discriminator string `json:"discriminator"` //4 digits
 		ID            string `json:"id"`
-		Avatar        string `json:"avatar"` // hex string (can be null?)
-}
-/*
-{
-	"username": "",
-	"discriminator": "0000",
-	"id": <authid>,
-	"avatar": <hex> // 32 hex digits, 128-bit
-},
-*/
-type Embed struct{
-	Desc     string    `json:"description"`
-	Author   Entity    `json:"author"`
-	URL      string    `json:"url"`
-	Title    string    `json:"title"`
-	Provider Entity    `json:"provider"`
-	Type     string    `json:"type"`
-	Thumb    Thumbnail `json:"thumbnail"`
-}
-type Entity struct{
-	URL  *string `json:"url"` //can be null
-	Name string `json:"name"`
-}                
-type Thumbnail struct{
-	URL    string `json:"url"`
-	Width  int    `json:"width"`
-	Proxy  string `json:"proxy_url"`
-	Height int    `json:"height"`
-}
-/*               
-"embeds": [
-	{
-		"description": "",
-		"author": {"url": "", "name": ""},
-		"url": "",
-		"title": "",
-		"provider": {"url": null, "name": "GitHub"},
-		"type": "link",
-		"thumbnail": {
-			"url": <url>,
-			"width": 96,
-			"proxy_url": <url>,
-			"height": 96
-		}
+		Avatar        string `json:"avatar"` // hex string (can be null)
 	}
-],
-*/
-type Attachment struct{
-	URL      string `json:"url"`      //URL of downloadable object
-	ProxyURL string `json:"poxy_url"` //URL of ?
-	Size     int    `json:"size"`     //size in bytes
-	ID       string `json:"id"`       //id of attachment
-	Filename string `json:"filename"` //filename
-}
-
-/*
-"attachments": [
-	{
-		"url": <url>,
-		"proxy_url": <url>,
-		"size": 82, // bytes
-		"id": <id>,
-		"filename": "hello.go"
-	}
-],
-*/
 
 type Message struct{
 	Nonce       string         `json:"nonce,omitempty"` //only used when sending messages
@@ -116,25 +62,77 @@ type Message struct{
 	MentionsNum []string       `json:"mentions,omitempty"` // Userids (usually only sent)
 	MentionsUse []User         `json:"mentions,omitempty"` // Userids (usually only receved)
 }
+	type Attachment struct{
+		URL      string `json:"url"`      //URL of downloadable object
+		ProxyURL string `json:"poxy_url"` //URL of ?
+		Size     int    `json:"size"`     //size in bytes
+		ID       string `json:"id"`       //id of attachment
+		Filename string `json:"filename"` //filename
+	}
+		type Embed struct{
+			Desc     string    `json:"description"`
+			Author   Entity    `json:"author"`
+			URL      string    `json:"url"`
+			Title    string    `json:"title"`
+			Provider Entity    `json:"provider"`
+			Type     string    `json:"type"`
+			Thumb    Thumbnail `json:"thumbnail"`
+		}
+			type Entity struct{
+				URL  *string `json:"url"` //can be null
+				Name string `json:"name"`
+			}                
+			type Thumbnail struct{
+				URL    string `json:"url"`
+				Width  int    `json:"width"`
+				Proxy  string `json:"proxy_url"`
+				Height int    `json:"height"`
+			}
 
-/*
-[
-	{
-		"attachments": [],
-		"tts": false,
-		"embeds": [],
-		"timestamp": "2015-11-03T20:07:16.292000+00:00",
-		"mention_everyone": false,
-		"id": <msgid>,
-		"edited_timestamp": null,
-		"author": {
-			"username": "",
-			"discriminator": "0000",
-			"id": <authid>,
-			"avatar": <hex> // 32 hex digits, 128-bit
-		},
-		"content": <url>,
-		"channel_id": <chanid>,
-		"mentions": []
-	},
-*/
+type PrivateChannel struct{ // not curently used
+	LastMsgID   *string    `json:"last_message_id"` // can be null
+	Recipient    User       `json:"recipient,omitempty"` //only exists if private
+	ID          string     `json:"id"`
+	Private     bool       `json:"is_private"`
+}
+type Channel struct{
+	GuildID     string     `json:"guild_id,omitempty"`
+	Name        string     `json:"name,omitempty"`
+	Permissions []PermOver `json:"permission_overwrites,omitempty"`
+	Topic       *string    `json:"topic,omitempty"` // can be null
+	Position    int        `json:"position,omitempty"`
+	LastMsgID   *string    `json:"last_message_id"` // can be null
+	Recipient    User       `json:"recipient,omitempty"` //only exists if private
+	Type        string     `json:"type,omitempty"` //only exists if not private (text|voice)
+	ID          string     `json:"id"`
+	Private     bool       `json:"is_private"`
+}
+	type PermOver struct{
+		Deny  int    `json"deny"`
+		Type  string `json"type"`
+		ID    string `json"id"`
+		Allow int    `json"allow"`
+	}
+
+type Guild struct{
+	AfkTimeout   int       `json:"afk_timeout"`
+	Joined       time.Time `json:"joined_at"`
+	AfkChanID    *string   `json:"afk_channel_id"`
+	ID           string    `json:"id"`
+	Icon         string    `json:"icon"`
+	Name         string    `json:"name"`
+	Roles        []Role    `json:"roles"`
+	Reigon       string    `json:"reigon"`
+	EmbedChanID  string    `json:"embed_channel_id"`
+	EmbedEnabled bool      `json:"embed_enabled"`
+	OwnerID      string    `json:"owner_id"`
+}
+	type Role struct{
+		Managed     bool   `json:"managed"`
+		Name        string `json:"name"`
+		Color       int    `json:"color"`
+		Hoist       bool   `json:"hoist"`
+		Position    int    `json:"position"`
+		ID          string `json:"id"`
+		Permissions int    `json:"permissions"`
+	}

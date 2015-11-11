@@ -7,7 +7,8 @@ import (
 
 type UnknownError string
 type TokenError string
-type EncodingError string
+type EncodingToError string
+type EncodingFromError string
 type PostError string
 type ReadError string
 type CredsError Creds
@@ -19,16 +20,23 @@ func (e UnknownError) Error() string {
 }
 func (e CredsError) Error() string {
 	login := Creds(e)
-	if len(login.Email) > 0 {
-		return fmt.Sprintf("token error: %s", login.Email[0])
+	resp := "token error:\n"
+	for _, line := range login.Email {
+		resp += "\t" + line + "\n"
 	}
-	return fmt.Sprintf("token error: %s", login.Pass[0])
+	for _, line := range login.Pass {
+		resp += "\t" + line + "\n"
+	}
+	return resp
 }
 func (e TokenError) Error() string {
 	return fmt.Sprintf("token error: %s", string(e))
 }
-func (e EncodingError) Error() string {
+func (e EncodingToError) Error() string {
 	return fmt.Sprintf("encoding to json error: %s", string(e))
+}
+func (e EncodingFromError) Error() string {
+	return fmt.Sprintf("encoding from json error: %s", string(e))
 }
 func (e PostError) Error() string {
 	return fmt.Sprintf("post error: %s", string(e))

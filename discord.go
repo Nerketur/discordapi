@@ -9,6 +9,8 @@ func Login(email, pass string) (Discord, error) {
 	client := Discord{ // only created once per client.
 		Client: &http.Client{ },
 		LoggingIn: true,
+		MyGuilds: []Guild{},
+		MyChans: []Channel{},
 	}
 	req := struct{ // no need to save this struct as its really only ever used ONCE per client.
 		Email string `json:"email"`
@@ -18,7 +20,7 @@ func Login(email, pass string) (Discord, error) {
 		Pass: pass,
 	}
 	resp := Creds{}
-	err := client.Post(LoginURL, req, &resp)
+	err := client.Post(LoginURL, req, &resp) // does not error as long as request succeeds
 	if err != nil {
 		return client, err
 	}
@@ -28,6 +30,17 @@ func Login(email, pass string) (Discord, error) {
 		return client, CredsError(resp)
 	}
 	fmt.Printf("User %s logged in successfully!\n", req.Email)
+	fmt.Println("filling guild and chan arrys...")
+	client.MyGuilds, err = client.Guilds()
+	if err != nil {
+		return client, err
+	}
+	client.MyChans, err = client.PrivateChannels()
+	if err != nil {
+		return client, err
+	}
+	fmt.Println("Arrays filled!")
+	
 	return client, nil
 }
 func (c Discord) Logout() error {
