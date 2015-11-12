@@ -9,37 +9,43 @@ import (
 
 type _chan []Channel
 
-func (c Discord) Channel(guild, name string) (string, error) {
+func (c Discord) Chan(guild, name string) (Channel, error) {
 	
 	guild, err := c.Guild(guild)
 	if err != nil {
-		return "", err
+		return Channel{}, err
 	}
 	chans, err := c.GuildChannels(guild)
 	if err != nil {
-		return "", err
+		return Channel{}, err
 	}
-	resp, err := _chan(chans).Find(name, false)
+	return _chan(chans).Find(name, false)
+}
+func (c Discord) ChanID(guild, name string) (string, error) {
+	channel, err := c.Chan(guild, name)
 	if err != nil {
 		fmt.Println(err)
 		return "", err
 	}
-	return resp, nil
+	return channel.ID, nil
 }
-func (c Discord) PivChannel(name string) string {
+func (c Discord) PrivChan(name string) Channel {
 	resp, err := _chan(c.MyChans).Find(name, true)
 	if err != nil {
 		fmt.Println(err)
 	}
 	return resp
 }
-func (c _chan) Find(name string, private bool) (string, error) {
+func (c Discord) PrivChanID(name string) string {
+	return c.PrivChan(name).ID
+}
+func (c _chan) Find(name string, private bool) (Channel, error) {
 	for _, ele := range c {
 		if private && (ele.Recipient.Username == name) || !private && (ele.Name == name) {
-			return ele.ID, nil
+			return ele, nil
 		}
 	}
-	return "", NotFoundError(name)
+	return Channel{}, NotFoundError(name)
 }
 
 func (c Discord) SendMsg(message, chanID string) (Message, error) {
@@ -61,8 +67,7 @@ func (c Discord) SendMsg(message, chanID string) (Message, error) {
 	return resp, nil
 }
 func (c Discord) GetMsgs(chanID, before, after string, limit int) ([]Message, error) {
-	
-	resp := make([]Message, limit)
+	resp := make([]Message, 0)
 	baseURL := fmt.Sprintf(ChanMsgsURL+"?", chanID)
 	params := url.Values{}
 	if before != "" {
@@ -71,8 +76,8 @@ func (c Discord) GetMsgs(chanID, before, after string, limit int) ([]Message, er
 	if after != "" {
 		params.Add("after", after)
 	}
-	if limit > 1 {
-		params.Add("limit", string(limit))
+	if limit >= 0 {
+		params.Add("limit", fmt.Sprintf("%v", limit))
 	}
 	
 	fullURL := baseURL + params.Encode()

@@ -37,9 +37,10 @@ func (c Discord) GuildMembers(guildID string) ([]Member, error) {
 		return resp, err
 	}
 	
-	fmt.Println("Got memberss successfully!")
+	fmt.Println("Got members successfully!")
 	return resp, nil
 }
+
 func (c Discord) GuildChannels(guildID string) ([]Channel, error) {
 	
 	resp := make([]Channel, 0)
