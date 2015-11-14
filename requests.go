@@ -60,29 +60,24 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 	if c.Token == "" && !c.LoggingIn { // not logged in or logging in
 		return TokenError("Not logged in!")
 	}
-	var req *http.Request // important to define it before using
-	var err error // define before use so we can use it later
-	if data != nil {
-
-		b, err := json.Marshal(data)
-		if err != nil {
-			return EncodingToError(fmt.Sprintf("%s", err))
-		}
+	
+	b, err := json.Marshal(data)
+	if err != nil {
+		return EncodingToError(fmt.Sprintf("%s", err))
+	}
+	var send bytes.Buffer
+	
+	if data != nil { // really for speed. can be removed with no issue
+		send.Write(b)
 		//os.Stdout.Write(b)
 		//os.Stdout.Write([]byte{10})
-		req, err = http.NewRequest(method, url, bytes.NewBuffer(b))
-		if err != nil {
-			return UnknownError(fmt.Sprintf("%s", err))
-		}
-	} else {
-		req, err = http.NewRequest(method, url, nil)
-		if err != nil {
-			return UnknownError(fmt.Sprintf("%s", err))
-		}
 	}
-	//err outside if would cause weird thing where err isn't populated
-	if req == nil {
-		return UnknownError("Why is req nil???") // should never happen
+	req, err := http.NewRequest(method, url, &send)
+	if err != nil {
+		return UnknownError(fmt.Sprintf("%s", err))
+	}
+	if data == nil {
+		req.Body = nil
 	}
 	if c.Token != "" {
 		req.Header.Add("Authorization", c.Token)
