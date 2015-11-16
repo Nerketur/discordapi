@@ -26,7 +26,8 @@ const (
 			GuildIDURL = GuildsURL + "/%s" //guild (server) ID
 				GuildBansURL = GuildIDURL + "/bans"
 				GuildMembersURL = GuildIDURL + "/members" // get
-				GuildRolesURL = GuildIDURL + "/roles"     // get
+				GuildRolesURL = GuildIDURL + "/roles"     // get, patch
+					GuildRoleIDURL = GuildRolesURL + "/%s"     // get?, put?, patch
 				GuildChansURL = GuildIDURL + "/channels"  // get
 		
 		ChansURL                  = APIURL  + "/channels" // chanID
@@ -37,6 +38,7 @@ const (
 				ChanInviteURL     = ChanIDURL + "/invites" // chanID
 				ChanTypingURL     = ChanIDURL + "/typing" // chanID (post only)
 				ChanPermsURL      = ChanIDURL + "/permissions" // chanID
+					ChanPermIDURL = ChanPermsURL + "/%s" // chanID, permID
 		
 		UsersURL = APIURL + "/users" //invite ID
 			UserIDURL = UsersURL + "/%s" // user ID
@@ -48,10 +50,8 @@ const (
 				MySettingsURL = MyURL + "/settings" // get
 				MyDevicesURL = MyURL + "/devices" // get
 				MyConnectionsURL = MyURL + "/connections" // get
-
-				
-	
-	
+				MyChansURL = MyURL + "/channels"
+				MyGuildsURL = MyURL + "/guilds"
 )
 
 func (c Discord) Send(method, url string, data, want interface{}) error {
@@ -89,17 +89,22 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 	}
 	defer resp.Body.Close() //after so panic wont occur for nil body
 	
-	//if resp.StatusCode < 200 || resp.StatusCode > 299 {
-	//	return HTTPError(*resp)
-	//}
-	
-	//on second thought, let the caller handle HTTP stuff
-	
 	var buff bytes.Buffer
 	io.Copy(&buff, resp.Body)
 	
+	if resp.StatusCode == http.StatusForbidden {
+		message := struct{Message string}{}
+		err = json.Unmarshal(buff.Bytes(), &message)
+		return PermissionsError(message.Message)
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
+		message := struct{Message string}{}
+		err = json.Unmarshal(buff.Bytes(), &message)
+		return PermissionsError(fmt.Sprintf("%s -- %v", message.Message, resp.StatusCode))
+	}
+	
 	if want != nil {
-		err = json.Unmarshal(buff.Bytes(), want)
+		err = json.Unmarshal(buff.Bytes(), &want)
 		//os.Stdout.Write(buff.Bytes())
 		//os.Stdout.Write([]byte{10})
 		
@@ -107,13 +112,17 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 			return EncodingFromError(fmt.Sprintf("%s", err))
 		}
 	}
-	
-	c.LoggingIn = false
 	return nil
 }
 func (c Discord) Post(url string, req, resp interface{}) error {
 	return c.Send("POST", url, req, resp)
 }
+func (c Discord) Put(url string, req interface{}) error {
+	return c.Send("PUT", url, req, nil)
+}
 func (c Discord) Get(url string, resp interface{}) error {
 	return c.Send("GET", url, nil, resp)
+}
+func (c Discord) Delete(url string) error {
+	return c.Send("DELETE", url, nil, nil)
 }

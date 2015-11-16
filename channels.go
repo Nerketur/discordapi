@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 	"net/url"
-	"encoding/json"
 )
 
 type _chan []Channel
@@ -81,7 +80,7 @@ func (c Discord) GetMsgs(chanID, before, after string, limit int) ([]Message, er
 	}
 	
 	fullURL := baseURL + params.Encode()
-	fmt.Println(fullURL)
+	//fmt.Println(fullURL)
 	err := c.Get(fullURL, &resp)
 	if err != nil {
 		//fmt.Println(err)
@@ -132,7 +131,7 @@ func (c Discord) DelMsg(msg Message) error {
 func (c Discord) PrivateChannels() ([]Channel, error) {
 	
 	resp := make([]Channel, 0)
-	err := c.Get(fmt.Sprintf(UserChansURL, "@me"), &resp)
+	err := c.Get(MyChansURL, &resp)
 	if err != nil {
 		//fmt.Println(err)
 		return resp, err
@@ -153,41 +152,43 @@ func (c Discord) SendTyping(chanID string) error {
 	return nil
 }
 
-// interface PermsNeeded {
-//	
-// }
-
-type ChanPermsMsg struct{
-	perms []string
-	msg   struct{
-		Message *string
-	}
+type userOrRole interface{
+	GetID() string
+	Type() string
 }
 
-func (s *ChanPermsMsg) UnmarshalJSON(raw []byte) error {
-	//first we try unmarshaling into roles
-	err1 := json.Unmarshal(raw, &s.perms)
-	if err1 != nil {
-		//retry with message
-		err2 := json.Unmarshal(raw, &s.msg)
-		if err2 != nil {
-			//error, invalid
-			return err2
-		}
-	}
-	return nil
-}
+func (x User) GetID() string {return x.ID}
+func (x User) Type() string {return "member"}
+func (x Role) GetID() string {return x.ID}
+func (x Role) Type() string {return "role"}
 
-func (c Discord) ChanPerms(chanID string) ([]string, error) {
-	resp := ChanPermsMsg{}
-	err := c.Get(fmt.Sprintf(ChanPermsURL, chanID), &resp)
+func (c Discord) ChanReplacePerms(chanID string, ur userOrRole, allow, deny Perm) error {
+	url := fmt.Sprintf(ChanPermIDURL, chanID, ur.GetID())
+	fmt.Println(url)
+	
+	req := PermOver{
+		Allow: allow,
+		Deny: deny,
+		ID: ur.GetID(),
+		Type: ur.Type(),
+	}
+	err := c.Put(url, req)
 	if err != nil {
-		return resp.perms, err
-	}
-	if resp.msg.Message != nil {
-		return resp.perms, MissingPermissionError(*resp.msg.Message)
+		return err
 	}
 	
-	fmt.Println("got chan perms!")
-	return resp.perms, nil
+	fmt.Println("replaced chan perms!")
+	return nil
+}
+func (c Discord) ChanDeletePerms(chanID string, ur userOrRole) error {
+	url := fmt.Sprintf(ChanPermIDURL, chanID, ur.GetID())
+	fmt.Println(url)
+	
+	err := c.Delete(url)
+	if err != nil {
+		return err
+	}
+	
+	fmt.Println("deleted chan perms!")
+	return nil
 }

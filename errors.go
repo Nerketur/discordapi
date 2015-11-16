@@ -13,8 +13,13 @@ type PostError string
 type ReadError string
 type CredsError Creds
 type HTTPError http.Response
+type PermissionsError string
 
 
+
+func (e PermissionsError) Error() string {
+	return fmt.Sprintf("permission error: %s\n", string(e))
+}
 func (e UnknownError) Error() string {
 	return fmt.Sprintf("error: %s", string(e))
 }

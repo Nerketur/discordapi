@@ -80,7 +80,7 @@ type Message struct{
 		}
 			type Entity struct{
 				URL  *string `json:"url"` //can be null
-				Name string `json:"name"`
+				Name string  `json:"name"`
 			}                
 			type Thumbnail struct{
 				URL    string `json:"url"`
@@ -91,7 +91,7 @@ type Message struct{
 
 type PrivateChannel struct{ // not curently used
 	LastMsgID   *string    `json:"last_message_id"` // can be null
-	Recipient    User       `json:"recipient,omitempty"` //only exists if private
+	Recipient   User       `json:"recipient,omitempty"` //only exists if private
 	ID          string     `json:"id"`
 	Private     bool       `json:"is_private"`
 }
@@ -102,16 +102,16 @@ type Channel struct{
 	Topic       *string    `json:"topic,omitempty"` // can be null
 	Position    int        `json:"position,omitempty"`
 	LastMsgID   *string    `json:"last_message_id"` // can be null
-	Recipient    User       `json:"recipient,omitempty"` //only exists if private
+	Recipient   User       `json:"recipient,omitempty"` //only exists if private
 	Type        string     `json:"type,omitempty"` //only exists if not private (text|voice)
 	ID          string     `json:"id"`
 	Private     bool       `json:"is_private"`
 }
 	type PermOver struct{
-		Deny  int    `json"deny"`
-		Type  string `json"type"`
-		ID    string `json"id"`
-		Allow int    `json"allow"`
+		Deny  Perm   `json:"deny"`
+		Type  string `json:"type"`
+		ID    string `json:"id"`
+		Allow Perm   `json:"allow"`
 	}
 
 type Guild struct{
@@ -128,11 +128,11 @@ type Guild struct{
 	OwnerID      string    `json:"owner_id"`
 }
 	type Role struct{
-		Managed     bool   `json:"managed"`
+		Managed     bool   `json:"managed,omitempty"`
 		Name        string `json:"name"`
 		Color       int    `json:"color"`
 		Hoist       bool   `json:"hoist"`
-		Position    int    `json:"position"`
-		ID          string `json:"id"`
-		Permissions int    `json:"permissions"`
+		Position    int    `json:"position,omitempty"`
+		ID          string `json:"id,omitempty"`
+		Permissions Perm   `json:"permissions"`
 	}

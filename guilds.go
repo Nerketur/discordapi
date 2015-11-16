@@ -2,7 +2,6 @@ package discord
 
 import (
 	"fmt"
-	"encoding/json"
 )
 
 type NotFoundError string
@@ -53,10 +52,11 @@ func (c Discord) GuildChannels(guildID string) ([]Channel, error) {
 	fmt.Println("Got channels successfully!")
 	return resp, nil
 }
+
 func (c Discord) Guilds() ([]Guild, error) {
 	
 	resp := make([]Guild, 0)
-	err := c.Get(fmt.Sprintf(UserIDURL, "@me")+"/guilds", &resp)
+	err := c.Get(MyGuildsURL, &resp)
 	if err != nil {
 		//fmt.Println(err)
 		return resp, err
@@ -66,104 +66,98 @@ func (c Discord) Guilds() ([]Guild, error) {
 	return resp, nil
 }
 
-type RolesMsg struct{
-	roles   []Role
-	msg     struct{
-		Message *string `json:"message"`
-	}
-}
-type BansMsg struct{
-	bans    []User
-	msg     struct{
-		Message *string `json:"message"`
-	}
-}
-
-func (s *RolesMsg) UnmarshalJSON(raw []byte) error {
-	//first we try unmarshaling into roles
-	err1 := json.Unmarshal(raw, &s.roles)
-	if err1 != nil {
-		//retry with message
-		err2 := json.Unmarshal(raw, &s.msg)
-		if err2 != nil {
-			//error, invalid
-			return err2
-		}
-	}
-	return nil
-}
-func (s *BansMsg) UnmarshalJSON(raw []byte) error {
-	//first we try unmarshaling into roles
-	err1 := json.Unmarshal(raw, &s.bans)
-	if err1 != nil {
-		//retry with message
-		err2 := json.Unmarshal(raw, &s.msg)
-		if err2 != nil {
-			//error, invalid
-			return err2
-		}
-	}
-	return nil
-}
-
-type MissingPermissionError string
-
-func (e MissingPermissionError) Error() string {
-	return fmt.Sprintln("permission error:", string(e))
-}
-
 func (c Discord) GuildRoles(guildID string) ([]Role, error) {
 	
-	resp := RolesMsg{}
+	resp := make([]Role, 0)
 	err := c.Get(fmt.Sprintf(GuildRolesURL, guildID), &resp)
 	if err != nil {
-		return resp.roles, err
-	}
-	if resp.msg.Message != nil {
-		return resp.roles, MissingPermissionError(*resp.msg.Message)
+		return resp, err
 	}
 	
 	fmt.Println("Got roles successfully!")
-	return resp.roles, nil
+	return resp, nil
 }
+
+func (c Discord) GuildAddRole(guildID string) (Role, error) {
+	
+	resp := Role{}
+	err := c.Post(fmt.Sprintf(GuildRolesURL, guildID), nil, &resp)
+	if err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("added role successfully!")
+	return resp, nil
+}
+func (c Discord) GuildEditRole(guildID string, r Role) (Role, error) {
+	
+	resp := Role{}
+	err := c.Send("PATCH", fmt.Sprintf(GuildRoleIDURL, guildID, r.ID), &r, &resp)
+	if err != nil {
+		return resp, err
+	}
+	if resp.Name != r.Name {
+		fmt.Println("edit unsuccessful")
+	} else {
+		fmt.Println("edited role successfully!")
+	}
+	return resp, nil
+}
+func (c Discord) GuildAddNamedRole(guildID, name string) (Role, error) {
+	
+	resp, err := c.GuildAddRole(guildID)
+	if err != nil {
+		return resp, err
+	}
+	resp.Name = name
+	fmt.Printf("%+v\n", resp)
+	resp, err = c.GuildEditRole(guildID, resp)
+	if err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("added named role successfully!")
+	return resp, nil
+}
+func (c Discord) GuildDeleteRole(guildID string, r Role) error {
+	
+	err := c.Send("DELETE", fmt.Sprintf(GuildRoleIDURL, guildID, r.ID), nil, nil)
+	if err != nil {
+		return err
+	}
+	fmt.Println("deleted role successfully!")
+	return nil
+}
+
+type Members []Member
+
+func (ms Members) Find(name string) []Member {
+	ret := make([]Member, 0)
+	for _, m := range ms {
+		if m.User.Username == name {
+			ret = append(ret, m)
+		}
+	}
+	return ret
+}
+
+func (c Discord) GuildFindMember(guildID string, n string) ([]Member, error) {
+	
+	membs, err := c.GuildMembers(guildID)
+	if err != nil {
+		return []Member{}, err
+	}
+	return Members(membs).Find(n), nil
+}
+
 func (c Discord) GuildBans(guildID string) ([]User, error) {
 	
-	resp := BansMsg{}
+	resp := make([]User, 0)
 	err := c.Get(fmt.Sprintf(GuildBansURL, guildID), &resp)
 	if err != nil {
-		return resp.bans, err
-	}
-	if resp.msg.Message != nil {
-		return resp.bans, MissingPermissionError(*resp.msg.Message)
+		return resp, err
 	}
 	
 	fmt.Println("Got bans successfully!")
-	return resp.bans, nil
+	return resp, nil
 }
-
-
-/*
-{
-    "afk_timeout": 300,
-    "joined_at": "2012-12-21T12:34:56.789012+00:00",
-    "afk_channel_id": null,
-    "id": "111222333444555666",
-    "icon": null,
-    "name": "Name",
-    "roles": [
-        {
-            "managed": false,
-            "name": "@everyone",
-            "color": 0,
-            "hoist": false,
-            "position": -1,
-            "id": "111222333444555666",
-            "permissions": 12345678
-        }
-    ],
-    "region": "us-west",
-    "embed_channel_id": null,
-    "embed_enabled": false,
-    "owner_id": "111222333444555666"
-}
-*/

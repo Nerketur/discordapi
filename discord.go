@@ -29,6 +29,7 @@ func Login(email, pass string) (Discord, error) {
 	if client.Token == "" {
 		return client, CredsError(resp)
 	}
+	client.LoggingIn = false
 	fmt.Printf("User %s logged in successfully!\n", req.Email)
 	fmt.Println("filling guild and chan arrys...")
 	client.MyGuilds, err = client.Guilds()
@@ -52,4 +53,8 @@ func (c Discord) Logout() error {
 	c.Token = ""
 	fmt.Println("User was logged out successfully! (once implemented server-side)")
 	return nil
+}
+
+func Version() string {
+	return fmt.Sprintf("Discord Go API v0.2 alpha")
 }
