@@ -11,7 +11,7 @@ func (c NotFoundError) Error() string {
 	return fmt.Sprintf("name not found: %s.  returning \"\"", string(c))
 }
 
-func (c Discord) Guild(name string) (string, error) {
+func (c Discord) GuildID(name string) (string, error) {
 	resp, err := guild(c.MyGuilds).Find(name)
 	if err != nil {
 		return "", err
@@ -53,7 +53,7 @@ func (c Discord) GuildChannels(guildID string) ([]Channel, error) {
 	return resp, nil
 }
 
-func (c Discord) Guilds() ([]Guild, error) {
+func (c Discord) GetMyGuilds() ([]Guild, error) {
 	
 	resp := make([]Guild, 0)
 	err := c.Get(MyGuildsURL, &resp)

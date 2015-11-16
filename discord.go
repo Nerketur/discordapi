@@ -32,11 +32,11 @@ func Login(email, pass string) (Discord, error) {
 	client.LoggingIn = false
 	fmt.Printf("User %s logged in successfully!\n", req.Email)
 	fmt.Println("filling guild and chan arrys...")
-	client.MyGuilds, err = client.Guilds()
+	client.MyGuilds, err = client.GetMyGuilds()
 	if err != nil {
 		return client, err
 	}
-	client.MyChans, err = client.PrivateChannels()
+	client.MyChans, err = client.GetMyPrivateChans()
 	if err != nil {
 		return client, err
 	}
