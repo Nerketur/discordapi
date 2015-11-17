@@ -117,6 +117,9 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 func (c Discord) Post(url string, req, resp interface{}) error {
 	return c.Send("POST", url, req, resp)
 }
+func (c Discord) Patch(url string, req, resp interface{}) error {
+	return c.Send("PATCH", url, req, resp)
+}
 func (c Discord) Put(url string, req interface{}) error {
 	return c.Send("PUT", url, req, nil)
 }

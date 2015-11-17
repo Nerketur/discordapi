@@ -78,7 +78,7 @@ func (c Discord) ChanReplacePerms(chanID string, ur userOrRole, allow, deny Perm
 }
 func (c Discord) ChanDeletePerms(chanID string, ur userOrRole) error {
 	url := fmt.Sprintf(ChanPermIDURL, chanID, ur.GetID())
-	fmt.Println(url)
+	//fmt.Println(url)
 	
 	err := c.Delete(url)
 	if err != nil {
@@ -86,5 +86,55 @@ func (c Discord) ChanDeletePerms(chanID string, ur userOrRole) error {
 	}
 	
 	fmt.Println("deleted chan perms!")
+	return nil
+}
+
+type InvalidTypeError string
+
+func (e InvalidTypeError) Error() string {
+	return fmt.Sprintf("invalid type '%s'", string(e))
+}
+
+func (c Discord) ChanCreate(guildID, name, kind string) (Channel, error) {
+	if kind != "text" && kind != "voice" {
+		return Channel{}, InvalidTypeError(kind)
+	}
+	url := fmt.Sprintf(GuildChansURL, guildID)
+	req := struct{
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}{
+		Name: name,
+		Type: kind,
+	}
+	resp := Channel{}
+	if err := c.Post(url, req, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("created channel!")
+	return resp, nil
+}
+
+func (c Discord) ChanEdit(chanID, name string, topic *string) (Channel, error) {
+	url := fmt.Sprintf(ChanIDURL, chanID)
+	req := make(map[string]*string)
+	if name != "" {req["name"] = &name} // name cannot be nil, empty ignore
+	if *topic != "" {req["topic"] = topic} // empty ignore, nil remove
+	resp := Channel{}
+	if err := c.Patch(url, req, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("edited channel!")
+	return resp, nil
+}
+func (c Discord) ChanDelete(chanID string) error {
+	url := fmt.Sprintf(ChanIDURL, chanID)
+	if err := c.Delete(url); err != nil {
+		return err
+	}
+	
+	fmt.Println("deleted channel!")
 	return nil
 }

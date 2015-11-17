@@ -91,7 +91,7 @@ type Message struct{
 
 type PrivateChannel struct{ // not curently used
 	LastMsgID   *string    `json:"last_message_id"` // can be null
-	Recipient   User       `json:"recipient,omitempty"` //only exists if private
+	Recipient   *User      `json:"recipient,omitempty"` //only exists if private
 	ID          string     `json:"id"`
 	Private     bool       `json:"is_private"`
 }
@@ -102,7 +102,7 @@ type Channel struct{
 	Topic       *string    `json:"topic,omitempty"` // can be null
 	Position    int        `json:"position,omitempty"`
 	LastMsgID   *string    `json:"last_message_id"` // can be null
-	Recipient   User       `json:"recipient,omitempty"` //only exists if private
+	Recipient   *User      `json:"recipient,omitempty"` //only exists if private
 	Type        string     `json:"type,omitempty"` //only exists if not private (text|voice)
 	ID          string     `json:"id"`
 	Private     bool       `json:"is_private"`
