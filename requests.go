@@ -25,7 +25,9 @@ const (
 		GuildsURL = APIURL + "/guilds" //get for list, post for new, patch for edit)
 			GuildIDURL = GuildsURL + "/%s" //guild (server) ID
 				GuildBansURL = GuildIDURL + "/bans"
+					GuildBanIDURL = GuildBansURL + "/%s"
 				GuildMembersURL = GuildIDURL + "/members" // get
+					GuildMemberIDURL = GuildMembersURL + "/%s"
 				GuildRolesURL = GuildIDURL + "/roles"     // get, patch
 					GuildRoleIDURL = GuildRolesURL + "/%s"     // get?, put?, patch
 				GuildChansURL = GuildIDURL + "/channels"  // get
@@ -52,6 +54,9 @@ const (
 				MyConnectionsURL = MyURL + "/connections" // get
 				MyChansURL = MyURL + "/channels"
 				MyGuildsURL = MyURL + "/guilds"
+		VoiceURL = APIURL + "/voice"
+			VoiceRegionsURL = VoiceURL + "/regions"
+			VoiceIceURL = VoiceURL + "/ice"
 )
 
 func (c Discord) Send(method, url string, data, want interface{}) error {
@@ -118,7 +123,7 @@ func (c Discord) Post(url string, req, resp interface{}) error {
 	return c.Send("POST", url, req, resp)
 }
 func (c Discord) Patch(url string, req, resp interface{}) error {
-	return c.Send("PATCH", url, req, resp)
+	return c.Send("PATCH", url, req, resp) //works like PUT for guild edit
 }
 func (c Discord) Put(url string, req interface{}) error {
 	return c.Send("PUT", url, req, nil)
@@ -126,6 +131,8 @@ func (c Discord) Put(url string, req interface{}) error {
 func (c Discord) Get(url string, resp interface{}) error {
 	return c.Send("GET", url, nil, resp)
 }
+
 func (c Discord) Delete(url string) error {
+	//TODO have a way to get responses recieved if any.
 	return c.Send("DELETE", url, nil, nil)
 }

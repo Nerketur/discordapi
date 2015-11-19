@@ -138,3 +138,81 @@ func (c Discord) ChanDelete(chanID string) error {
 	fmt.Println("deleted channel!")
 	return nil
 }
+//{"max_age":1800,"max_uses":0,"temporary":false,"xkcdpass":true}
+//defaults: 1 day, 0, false, false
+//TODO Disallow validate if anything else is there
+func (c Discord) ChanInviteAllCreate(chanID string, age, uses *uint, temp, xkcd *bool, code *string) (Invite, error) {
+	url := fmt.Sprintf(ChanInviteURL, chanID)
+	req := struct{
+		Age  *uint   `json:"max_age,omitempty"`
+		Code *string `json:"validate,omitempty"`
+		Temp *bool   `json:"temporary,omitempty"`
+		Uses *uint    `json:"max_uses,omitempty"`
+		XKCD *bool   `json:"xkcdpass,omitempty"`
+	}{
+		Age:  age,
+		Code: code,
+		Temp: temp,
+		Uses: uses,
+		XKCD: xkcd,
+	}
+	resp := Invite{}
+	if err := c.Post(url, req, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("created (or validated) chan invite!")
+	return resp, nil
+}
+func (c Discord) ChanInviteCreate(chanID string) (Invite, error) {
+	return c.ChanInviteAllCreate(chanID, nil, nil, nil, nil, nil)
+}
+func (c Discord) ChanInviteValidate(chanID, code string) (Invite, error) {
+	//validation, as of the time of this typing:
+		//does not check the code
+		//returns the first matching code (or the first code if none mtch)
+		//guaranteed to return an active code (but can still be revoked)
+		//code does not have to be created by us.
+	return c.ChanInviteAllCreate(chanID, nil, nil, nil, nil, &code)
+}
+func (c Discord) ChanInvites(chanID string) ([]Invite, error) {
+	url := fmt.Sprintf(ChanInviteURL, chanID)
+	resp := make([]Invite,0)
+	if err := c.Get(url, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("got chan invites!")
+	return resp, nil
+}
+
+func (c Discord) InviteRevoke(code string) error {
+	url := fmt.Sprintf(InviteURL, code)
+	if err := c.Delete(url); err != nil { // givs response
+		return err
+	}
+	
+	fmt.Println("revoked invite!")
+	return nil
+}
+//validation of code returns full invite
+func (c Discord) InviteInfo(code string) (Invite, error) {
+	url := fmt.Sprintf(InviteURL, code)
+	resp := Invite{}
+	if err := c.Get(url, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("got invite info!")
+	return resp, nil
+}
+func (c Discord) InviteAccept(code string) (Invite, error) {
+	url := fmt.Sprintf(InviteURL, code)
+	resp := Invite{}
+	if err := c.Post(url, nil, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("accepted invite info!")
+	return resp, nil
+}

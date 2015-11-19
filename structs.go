@@ -122,7 +122,7 @@ type Guild struct{
 	Icon         string    `json:"icon"`
 	Name         string    `json:"name"`
 	Roles        []Role    `json:"roles"`
-	Reigon       string    `json:"reigon"`
+	Region       string    `json:"region"`
 	EmbedChanID  string    `json:"embed_channel_id"`
 	EmbedEnabled bool      `json:"embed_enabled"`
 	OwnerID      string    `json:"owner_id"`
@@ -136,3 +136,19 @@ type Guild struct{
 		ID          string `json:"id,omitempty"`
 		Permissions Perm   `json:"permissions"`
 	}
+type Invite struct{
+    MaxAge    int       `json:"max_age"`
+    Code      string    `json:"code"`
+    Guild     struct{
+        ID        string    `json:"id"`
+        Name      string    `json:"name"`
+    }                   `json:"guild"`
+    Revoked   bool      `json:"revoked"`
+    CreatedAt time.Time `json:"created_at"`
+    Temporary bool      `json:"temporary"`
+    Uses      int       `json:"uses"`
+    MaxUses   int       `json:"max_uses"`
+    Inviter   User      `json:"inviter"`
+    XKCDpass  *string   `json:"xkcdpass"`
+    Chan      Channel   `json:"channel"`
+}

@@ -150,9 +150,9 @@ func (c Discord) GuildFindMember(guildID string, n string) ([]Member, error) {
 	return Members(membs).Find(n), nil
 }
 
-func (c Discord) GuildBans(guildID string) ([]User, error) {
+func (c Discord) GuildBans(guildID string) ([]Member, error) {
 	
-	resp := make([]User, 0)
+	resp := make([]Member, 0)
 	err := c.Get(fmt.Sprintf(GuildBansURL, guildID), &resp)
 	if err != nil {
 		return resp, err
@@ -161,3 +161,110 @@ func (c Discord) GuildBans(guildID string) ([]User, error) {
 	fmt.Println("Got bans successfully!")
 	return resp, nil
 }
+func (c Discord) GuildAddBan(guildID, userID string, days int) error {
+	
+	url := fmt.Sprintf(GuildBanIDURL, guildID, userID)
+	if days >= 0 {
+		url += fmt.Sprintf("?delete-message-days=%v", days)
+	}
+	
+	if err := c.Put(url, nil); err != nil {
+		return err
+	}
+	
+	fmt.Println("added ban successfully!")
+	return nil
+}
+//PUT https://discordapp.com/api/guilds/:guild_id/bans/:user_id?delete-message-days=0
+
+func (c Discord) GuildRemoveBan(guildID, userID string) error {
+	
+	url := fmt.Sprintf(GuildBanIDURL, guildID, userID)
+	
+	if err := c.Delete(url); err != nil {
+		return err
+	}
+	
+	fmt.Println("added ban successfully!")
+	return nil
+}
+
+func (c Discord) GuildCreate(name, region string) (Guild, error) {
+	
+/* 
+	reigons := make([]struct{
+		//{"sample_hostname": "us-west19.discord.gg", "sample_port": 80, "id": "us-west", "name": "US West"}
+		Hostname string `json:"sample_hostname"`
+		Port     uint64 `json:"sample_port"`
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+	}{})
+	err := c.VoiceRegions(&regions)
+	if err != nil {
+		return err
+	}
+	find := false
+	for _, reg := range regions {
+		if reg.ID == region {
+			find = true
+		}
+	}
+	if !find {
+		region = ""
+	}
+ */	
+	req := make(map[string]string)
+	req["name"] = name
+	req["region"] = region
+	resp := Guild{}
+	if err := c.Post(GuildsURL, req, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("created guild successfully!")
+	return resp, nil
+}
+func (c Discord) GuildEdit(guildID, name, region string) (Guild, error) {
+	req := make(map[string]string)
+	req["name"] = name
+	if region != "" {req["region"] = region}
+	resp := Guild{}
+	if err := c.Patch(fmt.Sprintf(GuildIDURL, guildID), req, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("edited guild successfully!")
+	return resp, nil
+}
+func (c Discord) GuildLeave(guildID string) error {
+	//resp := Guild{}
+	if err := c.Delete(fmt.Sprintf(GuildIDURL, guildID)); err != nil {
+		return err
+	}
+	
+	fmt.Println("left guild successfully!")
+	return nil
+}
+func (c Discord) GuildMemberEdit(guildID, userID string, roleIDs []string) error {
+	req := struct{
+		Roles []string `json:"roles,omitempty"`
+	}{
+		Roles: roleIDs,
+	}
+	if err := c.Patch(fmt.Sprintf(GuildMemberIDURL, guildID, userID), req, nil); err != nil {
+		return err
+	}
+	
+	fmt.Println("edited member successfully!")
+	return nil
+}
+func (c Discord) GuildMemberKick(guildID, userID string) error {
+	//resp := Guild{}
+	if err := c.Delete(fmt.Sprintf(GuildMemberIDURL, guildID, userID)); err != nil {
+		return err
+	}
+	
+	fmt.Println("kicked member successfully!")
+	return nil
+}
+
