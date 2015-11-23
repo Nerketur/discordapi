@@ -6,11 +6,24 @@ import (
 	"net/url"
 )
 
-func (c Discord) SendMsg(message, chanID string) (Message, error) {
+func (c Discord) SendMsg(message, chanID string, usrs []User) (Message, error) {
+	//way 1.) look for @name and see if any users match the name
+	//way 2.) use a passed in []User to fill mentions array
+	//for now useway 2
+	size := 0
 	
+	if usrs != nil {
+		size = len(usrs)
+	}
+	ment := make([]string, size)
+	if usrs != nil {
+		for i, u := range usrs {
+			ment[i] = u.ID
+		}
+	}
 	req := MessageSend{
 		Content: message,
-		Mentions: make([]string, 0),
+		Mentions: ment,
 		Nonce: fmt.Sprintf("%v", time.Now().Unix()), //almost always different.
 		Tts: false,
 	}
@@ -23,6 +36,9 @@ func (c Discord) SendMsg(message, chanID string) (Message, error) {
 	
 	fmt.Println("sent message successfully!")
 	return resp, nil
+}
+func (c Discord) SendTextMsg(message, chanID string) (Message, error) {
+	return c.SendMsg(message, chanID, nil)
 }
 func (c Discord) GetMsgs(chanID, before, after string, limit int) ([]Message, error) {
 	resp := make([]Message, 0)
@@ -49,14 +65,25 @@ func (c Discord) GetMsgs(chanID, before, after string, limit int) ([]Message, er
 	fmt.Println("got messages successfully!")
 	return resp, nil
 }
-func (c Discord) EditMsg(msg Message, newMsg string) (Message, error) {
+func (c Discord) EditMsg(msg Message, newMsg string, usrs []User) (Message, error) {
+	size := 0
+	
+	if usrs != nil {
+		size = len(usrs)
+	}
+	ment := make([]string, size)
+	if usrs != nil {
+		for i, u := range usrs {
+			ment[i] = u.ID
+		}
+	}
 	//need messageID and channelID
 	req := MessageSend{
 		Content: newMsg,
-		Mentions: make([]string, 0),
+		Mentions: ment,
 	}
 	resp := Message{}
-	err := c.Send("PATCH", fmt.Sprintf(MsgURL, msg.ChanID, msg.ID), req, &resp)
+	err := c.Patch(fmt.Sprintf(MsgURL, msg.ChanID, msg.ID), req, &resp)
 	if err != nil {
 		//fmt.Println(err)
 		return resp, err
@@ -64,6 +91,9 @@ func (c Discord) EditMsg(msg Message, newMsg string) (Message, error) {
 	
 	fmt.Println("edited message successfully!")
 	return resp, nil
+}
+func (c Discord) EditTextMsg(msg Message, newMsg string) (Message, error) {
+	return c.EditMsg(msg, newMsg, nil)
 }
 func (c Discord) AckMsg(msg Message) error {
 	//need messageID and channelID
@@ -78,7 +108,7 @@ func (c Discord) AckMsg(msg Message) error {
 }
 func (c Discord) DelMsg(msg Message) error {
 	//need messageID and channelID
-	err := c.Send("DELETE", fmt.Sprintf(MsgURL, msg.ChanID, msg.ID), nil, nil)
+	err := c.Delete(fmt.Sprintf(MsgURL, msg.ChanID, msg.ID))
 	if err != nil {
 		//fmt.Println(err)
 		return err

@@ -59,7 +59,7 @@ const (
 			VoiceIceURL = VoiceURL + "/ice"
 )
 
-func (c Discord) Send(method, url string, data, want interface{}) error {
+func (c Discord) send(method, url string, data, want interface{}) error {
 	//note data and want are interfaces, so theoreticaly any object can be sent via JSON.
 	//We don't have to worry about it, as an error will propogate if we send something unmarshalable
 	if c.Token == "" && !c.LoggingIn { // not logged in or logging in
@@ -97,15 +97,20 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 	var buff bytes.Buffer
 	io.Copy(&buff, resp.Body)
 	
-	if resp.StatusCode == http.StatusForbidden {
+	switch x := resp.StatusCode; {
+	case x >= 200 && x <= 299:
+		//do nothing
+	default:
 		message := struct{Message string}{}
 		err = json.Unmarshal(buff.Bytes(), &message)
-		return PermissionsError(message.Message)
-	}
-	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
-		message := struct{Message string}{}
-		err = json.Unmarshal(buff.Bytes(), &message)
-		return PermissionsError(fmt.Sprintf("%s -- %v", message.Message, resp.StatusCode))
+		switch x {
+		case 403: //forbidden
+			return PermissionsError(message.Message)
+		case 404: //not found
+			return PermissionsError("Resource not found!")
+		default:
+			return PermissionsError(fmt.Sprintf("%s -- %v", message.Message, resp.StatusCode))
+		}
 	}
 	
 	if want != nil {
@@ -120,19 +125,19 @@ func (c Discord) Send(method, url string, data, want interface{}) error {
 	return nil
 }
 func (c Discord) Post(url string, req, resp interface{}) error {
-	return c.Send("POST", url, req, resp)
+	return c.send("POST", url, req, resp)
 }
 func (c Discord) Patch(url string, req, resp interface{}) error {
-	return c.Send("PATCH", url, req, resp) //works like PUT for guild edit
+	return c.send("PATCH", url, req, resp) //works like PUT for guild edit
 }
 func (c Discord) Put(url string, req interface{}) error {
-	return c.Send("PUT", url, req, nil)
+	return c.send("PUT", url, req, nil)
 }
 func (c Discord) Get(url string, resp interface{}) error {
-	return c.Send("GET", url, nil, resp)
+	return c.send("GET", url, nil, resp)
 }
 
 func (c Discord) Delete(url string) error {
 	//TODO have a way to get responses recieved if any.
-	return c.Send("DELETE", url, nil, nil)
+	return c.send("DELETE", url, nil, nil)
 }

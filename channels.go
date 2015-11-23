@@ -6,20 +6,16 @@ import (
 
 type _chan []Channel
 
-func (c Discord) Chan(guild, name string) (Channel, error) {
+func (c Discord) Chan(guildID, name string) (Channel, error) {
 	
-	guild, err := c.GuildID(guild)
-	if err != nil {
-		return Channel{}, err
-	}
-	chans, err := c.GuildChannels(guild)
+	chans, err := c.GuildChannels(guildID)
 	if err != nil {
 		return Channel{}, err
 	}
 	return _chan(chans).Find(name)
 }
-func (c Discord) ChanID(guild, name string) (string, error) {
-	channel, err := c.Chan(guild, name)
+func (c Discord) ChanID(guildID, name string) (string, error) {
+	channel, err := c.Chan(guildID, name)
 	if err != nil {
 		fmt.Println(err)
 		return "", err
@@ -76,8 +72,8 @@ func (c Discord) ChanReplacePerms(chanID string, ur userOrRole, allow, deny Perm
 	fmt.Println("replaced chan perms!")
 	return nil
 }
-func (c Discord) ChanDeletePerms(chanID string, ur userOrRole) error {
-	url := fmt.Sprintf(ChanPermIDURL, chanID, ur.GetID())
+func (c Discord) ChanDeletePerms(chanID, permID string) error {
+	url := fmt.Sprintf(ChanPermIDURL, chanID, permID)
 	//fmt.Println(url)
 	
 	err := c.Delete(url)

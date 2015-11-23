@@ -11,20 +11,20 @@ func (c NotFoundError) Error() string {
 	return fmt.Sprintf("name not found: %s.  returning \"\"", string(c))
 }
 
-func (c Discord) GuildID(name string) (string, error) {
-	resp, err := guild(c.MyGuilds).Find(name)
-	if err != nil {
-		return "", err
-	}
-	return resp, nil
+func (c Discord) Guild(name string) (Guild, error) {
+	return guild(c.MyGuilds).Find(name)
 }
-func (c guild) Find(name string) (string, error) {
+func (c Discord) GuildID(name string) (string, error) {
+	resp, err := c.Guild(name)
+	return resp.ID, err //resp.id will be "" if invalid
+}
+func (c guild) Find(name string) (Guild, error) {
 	for _, ele := range c {
 		if ele.Name == name {
-			return ele.ID, nil
+			return ele, nil
 		}
 	}
-	return "", NotFoundError(name)
+	return Guild{}, NotFoundError(name)
 }
 
 func (c Discord) GuildMembers(guildID string) ([]Member, error) {
@@ -92,7 +92,7 @@ func (c Discord) GuildAddRole(guildID string) (Role, error) {
 func (c Discord) GuildEditRole(guildID string, r Role) (Role, error) {
 	
 	resp := Role{}
-	err := c.Send("PATCH", fmt.Sprintf(GuildRoleIDURL, guildID, r.ID), &r, &resp)
+	err := c.Patch(fmt.Sprintf(GuildRoleIDURL, guildID, r.ID), &r, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -119,9 +119,9 @@ func (c Discord) GuildAddNamedRole(guildID, name string) (Role, error) {
 	fmt.Println("added named role successfully!")
 	return resp, nil
 }
-func (c Discord) GuildDeleteRole(guildID string, r Role) error {
+func (c Discord) GuildDeleteRole(guildID, roleID string) error {
 	
-	err := c.Send("DELETE", fmt.Sprintf(GuildRoleIDURL, guildID, r.ID), nil, nil)
+	err := c.Delete(fmt.Sprintf(GuildRoleIDURL, guildID, roleID))
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (ms Members) Find(name string) []Member {
 	return ret
 }
 
-func (c Discord) GuildFindMember(guildID string, n string) ([]Member, error) {
+func (c Discord) GuildFindMember(guildID, n string) ([]Member, error) {
 	
 	membs, err := c.GuildMembers(guildID)
 	if err != nil {
