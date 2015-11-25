@@ -152,3 +152,46 @@ type Invite struct{
     XKCDpass  *string   `json:"xkcdpass"`
     Chan      Channel   `json:"channel"`
 }
+type Region struct{
+	Hostname string `json:"sample_hostname"`
+	Port     uint   `json:"sample_port"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+}
+type Connection struct{
+	Integrations []Integration `json:"integrations"`
+	Revoked      bool          `json:"revoked"`
+	Type         string        `json:"type"`
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+}
+	type Integration string
+type Ice struct {
+	TTL     string   `json:"ttl"`
+	Servers []Server `json:"servers"`
+}
+	type Server struct {
+		URL      string `json:"url"`
+		Username string `json:"username,omitempty"`
+		Cred     string `json:"credential,omitempty"`
+	}
+type Setting struct{
+	RenderEmbeds      bool     `json:"render_embeds"`
+	InlineEmbedMedia  bool     `json:"inline_embed_media"`
+	EnableTTSCmd      bool     `json:"enable_tts_command"`
+	MsgDispCompact    bool     `json:"message_display_compact"`
+	Locale            string   `json:"locale"`
+	ShowCurrentGame   bool     `json:"show_current_game"`
+	Theme             string   `json:"theme"`
+	MutedChanIDs      []string `json:"muted_channels"`
+	InlineAttachMedia bool     `json:"inline_attachment_media"`
+	
+}
+type Tutorial struct{
+	Confirmed  []string `json:"indicators_confirmed"`
+	Suppressed bool     `json:"indicators_suppressed"`
+}
+type EmbedInfo struct{
+	ChanID  *string `json:"channel_id"`
+	Enabled bool    `json:"enabled"`
+}

@@ -11,6 +11,7 @@ import (
 
 const (
 	APIURL = "https://discordapp.com/api"
+		GatewayURL = APIURL + "/gateway"
 		AuthURL = APIURL  + "/auth"
 			LoginURL = AuthURL  + "/login" //post
 			LogoutURL = AuthURL + "/logout" //post
@@ -31,6 +32,10 @@ const (
 				GuildRolesURL = GuildIDURL + "/roles"     // get, patch
 					GuildRoleIDURL = GuildRolesURL + "/%s"     // get?, put?, patch
 				GuildChansURL = GuildIDURL + "/channels"  // get
+				GuildInvitesURL = GuildIDURL + "/invites"
+				GuildPruneURL = GuildIDURL + "/prune"
+				GuildEmbedURL = GuildIDURL + "/embed"
+				GuildIntegrationsURL = GuildIDURL + "/integrations"
 		
 		ChansURL                  = APIURL  + "/channels" // chanID
 			ChanIDURL             = ChansURL + "/%s" // chanID
@@ -57,6 +62,8 @@ const (
 		VoiceURL = APIURL + "/voice"
 			VoiceRegionsURL = VoiceURL + "/regions"
 			VoiceIceURL = VoiceURL + "/ice"
+		TutorialURL = APIURL + "/tutorial"
+			TutorialIndURL = TutorialURL + "/indicators"
 )
 
 func (c Discord) send(method, url string, data, want interface{}) error {

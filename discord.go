@@ -56,5 +56,36 @@ func (c Discord) Logout() error {
 }
 
 func Version() string {
-	return fmt.Sprintf("Discord Go API v0.4 alpha")
+	return fmt.Sprintf("Discord Go API v0.5 alpha")
 }
+
+// GET https://discordapp.com/api/gateway
+//
+// {"url": "wss://gateway-nidhogg.discord.gg"}
+
+func (c Discord) Gateway() (string, error) {
+	req := struct{URL string `json"url"`}{}
+	err := c.Get(GatewayURL, &req)
+	return req.URL, err
+}
+func (c Discord) UserConnections() ([]Connection, error) {
+	req := make([]Connection, 0)
+	err := c.Get(MyConnectionsURL, &req)
+	return req, err
+}
+func (c Discord) UserSettings() (Setting, error) {
+	req := Setting{}
+	err := c.Get(MySettingsURL, &req)
+	return req, err
+}
+
+func (c Discord) TutorialInfo() (Tutorial, error) {
+	req := Tutorial{}
+	err := c.Get(TutorialURL, &req)
+	return req, err
+}
+/* func (c Discord) TutorialIndicatorsInfo() (struct{}, error) {
+	req := struct{}{}
+	err := c.Get(TutorialIndURL, &req)
+	return req, err
+} */

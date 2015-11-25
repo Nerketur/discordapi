@@ -268,3 +268,39 @@ func (c Discord) GuildMemberKick(guildID, userID string) error {
 	return nil
 }
 
+func (c Discord) GuildInvitesList(guildID string) (resp []Invite, err error) {
+	resp = make([]Invite, 0)
+	err = c.Get(fmt.Sprintf(GuildInvitesURL, guildID), &resp)
+	return
+}
+func (c Discord) GuildPruneInfo(guildID string, days int) (int, error) {
+	resp := struct{Pruned int `json:"pruned"`}{}
+	url := fmt.Sprintf(GuildPruneURL, guildID)
+	if days > 0 {
+		url += fmt.Sprintf("?days=%v", days)
+	}
+	err := c.Get(url, &resp)
+	return resp.Pruned, err
+}
+func (c Discord) guildPrune(guildID string, days int) (int, error) { // private so people won't call it
+	resp := struct{Pruned int `json:"pruned"`}{}
+	url := fmt.Sprintf(GuildPruneURL, guildID)
+	if days > 0 {
+		url += fmt.Sprintf("?days=%v", days)
+	}
+	err := c.Post(url, nil, &resp)
+	return resp.Pruned, err
+}
+
+func (c Discord) GuildEmbed(guildID string) (resp EmbedInfo, err error) {
+	err = c.Get(fmt.Sprintf(GuildEmbedURL, guildID), &resp)
+	return
+}
+func (c Discord) GuildIntegrations(guildID string) (resp []Integration, err error) {
+	resp = make([]Integration, 0)
+	err = c.Get(fmt.Sprintf(GuildIntegrationsURL, guildID), &resp)
+	return
+}
+/*
+{"channel_id": null, "enabled": false}
+*/
