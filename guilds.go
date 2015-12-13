@@ -22,6 +22,7 @@ func (c guild) Find(name string) (Guild, error) {
 	return Guild{}, NameNotFoundError(name)
 }
 
+//depricated.  may be removed with WS addition in 0.7
 func (c Discord) GuildMembers(guildID string) ([]Member, error) {
 	
 	resp := make([]Member, 0)
@@ -136,7 +137,6 @@ func (c Discord) GuildAddNamedRole(guildID, name string) (Role, error) {
 	return resp, nil
 }
 func (c Discord) GuildDeleteRole(guildID, roleID string) error {
-	
 	err := c.Delete(fmt.Sprintf(GuildRoleIDURL, guildID, roleID))
 	if err != nil {
 		return err

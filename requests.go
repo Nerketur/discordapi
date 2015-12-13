@@ -94,8 +94,15 @@ func (c Discord) send(method, url string, data, want interface{}) error {
 	if c.Token != "" {
 		req.Header.Add("Authorization", c.Token)
 	}
-	req.Header.Add("Content-Type", "application/json; charset=UTF-8")
+	if (req.ContentLength != 0) {
+		req.Header.Add("Content-Type", "application/json; charset=UTF-8")
+	}
 	req.Header.Add("User-Agent", "DiscordBot (github.com/Nerketur/discordapi, " + Version() + ")")
+	
+	if debug == true {
+		fmt.Println("url:", url)
+		fmt.Printf("req:\n%#v\n\n", req)
+	}
 	
 	resp, err := c.Client.Do(req) // at this point, bytes buffer is closed if needed
 	if err != nil { //if theres an err, body couldbe nil
@@ -118,7 +125,7 @@ func (c Discord) send(method, url string, data, want interface{}) error {
 		case 404: //not found
 			return PermissionsError("Resource not found!")
 		case 429: //rate limit hit
-			return RateLimitError(message.Message) //TODO: add retryafter header
+			return RateLimitError(message.Message + "--rate limit hit--") //TODO: add retryafter header
 		default:
 			return PermissionsError(fmt.Sprintf("%s -- %v", message.Message, resp.StatusCode))
 		}

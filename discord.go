@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 )
 
+var debug bool = false
+
 func Login(email, pass string) (Discord, error) {
 	
 	client := Discord{ // only created once per client.
