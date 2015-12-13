@@ -27,7 +27,7 @@ const (
 			GuildIDURL = GuildsURL + "/%s" //guild (server) ID
 				GuildBansURL = GuildIDURL + "/bans"
 					GuildBanIDURL = GuildBansURL + "/%s"
-				GuildMembersURL = GuildIDURL + "/members" // get
+				GuildMembersURL = GuildIDURL + "/members" // get (being removed)
 					GuildMemberIDURL = GuildMembersURL + "/%s"
 				GuildRolesURL = GuildIDURL + "/roles"     // get, patch
 					GuildRoleIDURL = GuildRolesURL + "/%s"     // get?, put?, patch
@@ -95,6 +95,7 @@ func (c Discord) send(method, url string, data, want interface{}) error {
 		req.Header.Add("Authorization", c.Token)
 	}
 	req.Header.Add("Content-Type", "application/json; charset=UTF-8")
+	req.Header.Add("User-Agent", "DiscordBot (github.com/Nerketur/discordapi, " + c.Version() + ")")
 	resp, err := c.Client.Do(req) // at this point, bytes buffer is closed if needed
 	if err != nil { //if theres an err, body couldbe nil
 		return PostError(fmt.Sprintf("%s", err)) // body is nil here
@@ -115,6 +116,8 @@ func (c Discord) send(method, url string, data, want interface{}) error {
 			return PermissionsError(message.Message)
 		case 404: //not found
 			return PermissionsError("Resource not found!")
+		case 429: //rate limit hit
+			return RateLimitError(message.Message) //TODO: add retryafter header
 		default:
 			return PermissionsError(fmt.Sprintf("%s -- %v", message.Message, resp.StatusCode))
 		}

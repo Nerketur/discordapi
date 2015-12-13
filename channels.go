@@ -29,7 +29,15 @@ func (c _chan) Find(name string) (Channel, error) {
 			return ele, nil
 		}
 	}
-	return Channel{}, NotFoundError(name)
+	return Channel{}, NameNotFoundError(name)
+}
+func (c _chan) FindIdx(id string) (int, error) {
+	for idx, ele := range c {
+		if ele.ID == id {
+			return idx, nil
+		}
+	}
+	return -1, NameNotFoundError("id: " + id)
 }
 
 func (c Discord) SendTyping(chanID string) error {
@@ -85,33 +93,6 @@ func (c Discord) ChanDeletePerms(chanID, permID string) error {
 	return nil
 }
 
-type InvalidTypeError string
-
-func (e InvalidTypeError) Error() string {
-	return fmt.Sprintf("invalid type '%s'", string(e))
-}
-
-func (c Discord) ChanCreate(guildID, name, kind string) (Channel, error) {
-	if kind != "text" && kind != "voice" {
-		return Channel{}, InvalidTypeError(kind)
-	}
-	url := fmt.Sprintf(GuildChansURL, guildID)
-	req := struct{
-		Name string `json:"name"`
-		Type string `json:"type"`
-	}{
-		Name: name,
-		Type: kind,
-	}
-	resp := Channel{}
-	if err := c.Post(url, req, &resp); err != nil {
-		return resp, err
-	}
-	
-	fmt.Println("created channel!")
-	return resp, nil
-}
-
 func (c Discord) ChanEdit(chanID, name string, topic *string) (Channel, error) {
 	url := fmt.Sprintf(ChanIDURL, chanID)
 	req := make(map[string]*string)
@@ -130,7 +111,11 @@ func (c Discord) ChanDelete(chanID string) error {
 	if err := c.Delete(url); err != nil {
 		return err
 	}
-	
+	idx, err := _chan(c.MyChans).FindIdx(chanID)
+	if err != nil {
+		return err
+	}
+	c.MyChans = append(c.MyChans[:idx-1], c.MyChans[idx+1:]...)
 	fmt.Println("deleted channel!")
 	return nil
 }

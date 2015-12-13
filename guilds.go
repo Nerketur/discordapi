@@ -4,12 +4,7 @@ import (
 	"fmt"
 )
 
-type NotFoundError string
 type guild []Guild
-
-func (c NotFoundError) Error() string {
-	return fmt.Sprintf("name not found: %s.  returning \"\"", string(c))
-}
 
 func (c Discord) Guild(name string) (Guild, error) {
 	return guild(c.MyGuilds).Find(name)
@@ -24,7 +19,7 @@ func (c guild) Find(name string) (Guild, error) {
 			return ele, nil
 		}
 	}
-	return Guild{}, NotFoundError(name)
+	return Guild{}, NameNotFoundError(name)
 }
 
 func (c Discord) GuildMembers(guildID string) ([]Member, error) {
@@ -50,6 +45,27 @@ func (c Discord) GuildChannels(guildID string) ([]Channel, error) {
 	}
 	
 	fmt.Println("Got channels successfully!")
+	return resp, nil
+}
+
+func (c Discord) GuildChanCreate(guildID, name, kind string) (Channel, error) {
+	if kind != "text" && kind != "voice" {
+		return Channel{}, InvalidTypeError(kind)
+	}
+	url := fmt.Sprintf(GuildChansURL, guildID)
+	req := struct{
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}{
+		Name: name,
+		Type: kind,
+	}
+	resp := Channel{}
+	if err := c.Post(url, req, &resp); err != nil {
+		return resp, err
+	}
+	
+	fmt.Println("created channel!")
 	return resp, nil
 }
 
@@ -131,14 +147,17 @@ func (c Discord) GuildDeleteRole(guildID, roleID string) error {
 
 type Members []Member
 
-func (ms Members) Find(name string) []Member {
-	ret := make([]Member, 0)
+func (ms Members) Find(name string) (ret []Member, err error) {
+	ret = make([]Member, 0)
 	for _, m := range ms {
 		if m.User.Username == name {
 			ret = append(ret, m)
 		}
 	}
-	return ret
+	if len(ret) == 0 {
+		err = NameNotFoundError("member: " + name)
+	}
+	return ret, err
 }
 
 func (c Discord) GuildFindMember(guildID, n string) ([]Member, error) {
@@ -147,7 +166,7 @@ func (c Discord) GuildFindMember(guildID, n string) ([]Member, error) {
 	if err != nil {
 		return []Member{}, err
 	}
-	return Members(membs).Find(n), nil
+	return Members(membs).Find(n)
 }
 
 func (c Discord) GuildBans(guildID string) ([]Member, error) {

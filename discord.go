@@ -56,7 +56,10 @@ func (c Discord) Logout() error {
 }
 
 func Version() string {
-	return fmt.Sprintf("Discord Go API v0.5 alpha")
+	return "v0.5 alpha"
+}
+func VersionString() string {
+	return fmt.Sprintf("Discord Go API %s", Version())
 }
 
 // GET https://discordapp.com/api/gateway
@@ -77,6 +80,10 @@ func (c Discord) UserSettings() (Setting, error) {
 	req := Setting{}
 	err := c.Get(MySettingsURL, &req)
 	return req, err
+}
+func (c Discord) SetUserSettings(s Setting) error {
+	err := c.Put(MySettingsURL, &s)
+	return err
 }
 
 func (c Discord) TutorialInfo() (Tutorial, error) {

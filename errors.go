@@ -14,9 +14,20 @@ type ReadError string
 type CredsError Creds
 type HTTPError http.Response
 type PermissionsError string
+type RateLimitError string
+type NameNotFoundError string
+type InvalidTypeError string
 
+func (e InvalidTypeError) Error() string {
+	return fmt.Sprintf("invalid type '%s'", string(e))
+}
+func (c NameNotFoundError) Error() string {
+	return fmt.Sprintf("name not found: %s", string(c))
+}
 
-
+func (e RateLimitError) Error() string {
+	return fmt.Sprintf("permission error: %s\n", string(e))
+}
 func (e PermissionsError) Error() string {
 	return fmt.Sprintf("permission error: %s\n", string(e))
 }

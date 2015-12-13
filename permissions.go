@@ -85,6 +85,10 @@ func (p *Perm) FromInt(mask int) {
     if (1<<24 & mask) != 0 {p.MoveMembers = true}
     if (1<<25 & mask) != 0 {p.UseVad = true}
 }
+func FromInt(mask int) (p Perm) {
+	p.FromInt(mask)
+	return
+}
 
 func (p Perm) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.ToInt())

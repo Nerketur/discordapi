@@ -23,7 +23,7 @@ func (c _privchan) Find(name string) (Channel, error) {
 			return ele, nil
 		}
 	}
-	return Channel{}, NotFoundError(name)
+	return Channel{}, NameNotFoundError(name)
 }
 
 func (c Discord) GetMyPrivateChans() ([]Channel, error) {
@@ -56,7 +56,7 @@ func (c Discord) CreatePrivateChan(userID string) (Channel, error) {
 		//fmt.Println(err)
 		return resp, err
 	}
-	
+	c.MyChans = append(c.MyChans, resp)
 	fmt.Println("created (opened) private channel successfully!")
 	return resp, nil
 }
