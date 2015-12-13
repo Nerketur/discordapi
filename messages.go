@@ -7,10 +7,6 @@ import (
 )
 
 func (c Discord) SendRawMsg(message, chanID string, ids []string) (Message, error) {
-	//way 1.) look for @name and see if any users match the name
-	//way 2.) use a passed in []User to fill mentions array
-	//for now useway 2
-	size := 0
 	
 	req := MessageSend{
 		Content: message,
@@ -43,7 +39,7 @@ func (c Discord) SendMsg(message, chanID string, usrs []User) (Message, error) {
 			ment[i] = u.ID
 		}
 	}
-	return c.SendRawMessage(message, chanID, ment)
+	return c.SendRawMsg(message, chanID, ment)
 }
 func (c Discord) SendTextMsg(message, chanID string) (Message, error) {
 	return c.SendMsg(message, chanID, nil)

@@ -95,7 +95,8 @@ func (c Discord) send(method, url string, data, want interface{}) error {
 		req.Header.Add("Authorization", c.Token)
 	}
 	req.Header.Add("Content-Type", "application/json; charset=UTF-8")
-	req.Header.Add("User-Agent", "DiscordBot (github.com/Nerketur/discordapi, " + c.Version() + ")")
+	req.Header.Add("User-Agent", "DiscordBot (github.com/Nerketur/discordapi, " + Version() + ")")
+	
 	resp, err := c.Client.Do(req) // at this point, bytes buffer is closed if needed
 	if err != nil { //if theres an err, body couldbe nil
 		return PostError(fmt.Sprintf("%s", err)) // body is nil here
