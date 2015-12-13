@@ -16,11 +16,8 @@ func (c Discord) Chan(guildID, name string) (Channel, error) {
 }
 func (c Discord) ChanID(guildID, name string) (string, error) {
 	channel, err := c.Chan(guildID, name)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-	return channel.ID, nil
+	
+	return channel.ID, err
 }
 
 func (c _chan) Find(name string) (Channel, error) {
@@ -40,16 +37,13 @@ func (c _chan) FindIdx(id string) (int, error) {
 	return -1, NameNotFoundError("id: " + id)
 }
 
-func (c Discord) SendTyping(chanID string) error {
-	
-	err := c.Post(fmt.Sprintf(ChanTypingURL, chanID), nil, nil)
+func (c Discord) SendTyping(chanID string) (err error) {
+	err = c.Post(fmt.Sprintf(ChanTypingURL, chanID), nil, nil)
 	if err != nil {
-		//fmt.Println(err)
-		return err
+		return
 	}
-	
 	fmt.Println("typing sent!")
-	return nil
+	return
 }
 
 type userOrRole interface{
@@ -62,7 +56,7 @@ func (x User) Type() string {return "member"}
 func (x Role) GetID() string {return x.ID}
 func (x Role) Type() string {return "role"}
 
-func (c Discord) ChanReplacePerms(chanID string, ur userOrRole, allow, deny Perm) error {
+func (c Discord) ChanReplacePerms(chanID string, ur userOrRole, allow, deny Perm) (err error) {
 	url := fmt.Sprintf(ChanPermIDURL, chanID, ur.GetID())
 	fmt.Println(url)
 	
@@ -72,52 +66,49 @@ func (c Discord) ChanReplacePerms(chanID string, ur userOrRole, allow, deny Perm
 		ID: ur.GetID(),
 		Type: ur.Type(),
 	}
-	err := c.Put(url, req)
-	if err != nil {
-		return err
+	
+	if err := c.Put(url, req); err != nil {
+		return
 	}
 	
 	fmt.Println("replaced chan perms!")
-	return nil
+	return
 }
-func (c Discord) ChanDeletePerms(chanID, permID string) error {
+func (c Discord) ChanDeletePerms(chanID, permID string) (err error) {
 	url := fmt.Sprintf(ChanPermIDURL, chanID, permID)
-	//fmt.Println(url)
-	
-	err := c.Delete(url)
-	if err != nil {
-		return err
+
+	if err = c.Delete(url); err != nil {
+		return
 	}
 	
 	fmt.Println("deleted chan perms!")
-	return nil
+	return
 }
 
-func (c Discord) ChanEdit(chanID, name string, topic *string) (Channel, error) {
+func (c Discord) ChanEdit(chanID, name string, topic *string) (resp Channel, err error) {
 	url := fmt.Sprintf(ChanIDURL, chanID)
 	req := make(map[string]*string)
 	if name != "" {req["name"] = &name} // name cannot be nil, empty ignore
 	if *topic != "" {req["topic"] = topic} // empty ignore, nil remove
-	resp := Channel{}
-	if err := c.Patch(url, req, &resp); err != nil {
-		return resp, err
+	if err = c.Patch(url, req, &resp); err != nil {
+		return
 	}
 	
 	fmt.Println("edited channel!")
-	return resp, nil
+	return
 }
-func (c Discord) ChanDelete(chanID string) error {
+func (c Discord) ChanDelete(chanID string) (err error) {
 	url := fmt.Sprintf(ChanIDURL, chanID)
-	if err := c.Delete(url); err != nil {
-		return err
+	if err = c.Delete(url); err != nil {
+		return
 	}
 	idx, err := _chan(c.MyChans).FindIdx(chanID)
 	if err != nil {
-		return err
+		return
 	}
 	c.MyChans = append(c.MyChans[:idx-1], c.MyChans[idx+1:]...)
 	fmt.Println("deleted channel!")
-	return nil
+	return
 }
 //{"max_age":1800,"max_uses":0,"temporary":false,"xkcdpass":true}
 //defaults: 1 day, 0, false, false
@@ -156,13 +147,13 @@ func (c Discord) ChanInviteValidate(chanID, code string) (Invite, error) {
 		//code does not have to be created by us.
 	return c.ChanInviteAllCreate(chanID, nil, nil, nil, nil, &code)
 }
-func (c Discord) ChanInvites(chanID string) ([]Invite, error) {
+func (c Discord) ChanInvites(chanID string) (resp []Invite, err error) {
 	url := fmt.Sprintf(ChanInviteURL, chanID)
-	resp := make([]Invite,0)
-	if err := c.Get(url, &resp); err != nil {
-		return resp, err
+	resp = make([]Invite,0)
+	if err = c.Get(url, &resp); err != nil {
+		return
 	}
 	
 	fmt.Println("got chan invites!")
-	return resp, nil
+	return
 }

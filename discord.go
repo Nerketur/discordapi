@@ -22,24 +22,9 @@ func Login(email, pass string) (Discord, error) {
 	
 	//get sha1:
 	s := email+pass
-	////////////////////////////////////
-
-//The pattern for generating a hash is sha1.New(), sha1.Write(bytes), then sha1.Sum([]byte{}). Here we start with a new hash.
-	
-
     h := sha1.New()
-
-//Write expects bytes. If you have a string s, use []byte(s) to coerce it to bytes.
-	
-
     h.Write([]byte(s))
-
-//This gets the finalized hash result as a byte slice. The argument to Sum can be used to append to an existing byte slice: it usually isn’t needed.
-	
-
     bs := h.Sum(nil)
-
-	/////////////////////////////
 	
 	filename := fmt.Sprintf("%x.json", bs)
 	dat, err := ioutil.ReadFile(filename)
@@ -91,15 +76,15 @@ func Login(email, pass string) (Discord, error) {
 	
 	return client, nil
 }
-func (c Discord) Logout() error {
+func (c Discord) Logout() (err error) {
 	request := struct{Token string `json:"token"`}{Token: c.Token}
-	err := c.Post(LogoutURL, request, nil)
+	err = c.Post(LogoutURL, request, nil)
 	if err != nil {
-		return err
+		return
 	}
 	c.Token = ""
 	fmt.Println("User was logged out successfully! (once implemented server-side)")
-	return nil
+	return
 }
 
 func Version() string {
@@ -109,37 +94,31 @@ func VersionString() string {
 	return fmt.Sprintf("Discord Go API %s", Version())
 }
 
-// GET https://discordapp.com/api/gateway
-//
-// {"url": "wss://gateway-nidhogg.discord.gg"}
 
 func (c Discord) Gateway() (string, error) {
 	req := struct{URL string `json"url"`}{}
 	err := c.Get(GatewayURL, &req)
 	return req.URL, err
 }
-func (c Discord) UserConnections() ([]Connection, error) {
-	req := make([]Connection, 0)
-	err := c.Get(MyConnectionsURL, &req)
-	return req, err
+func (c Discord) UserConnections() (req []Connection, err error) {
+	req = make([]Connection, 0)
+	err = c.Get(MyConnectionsURL, &req)
+	return
 }
-func (c Discord) UserSettings() (Setting, error) {
-	req := Setting{}
-	err := c.Get(MySettingsURL, &req)
-	return req, err
+func (c Discord) UserSettings() (req Setting, err error) {
+	err = c.Get(MySettingsURL, &req)
+	return
 }
-func (c Discord) SetUserSettings(s Setting) error {
-	err := c.Put(MySettingsURL, &s)
-	return err
+func (c Discord) SetUserSettings(s Setting) (err error) {
+	err = c.Put(MySettingsURL, &s)
+	return
 }
 
-func (c Discord) TutorialInfo() (Tutorial, error) {
-	req := Tutorial{}
-	err := c.Get(TutorialURL, &req)
-	return req, err
+func (c Discord) TutorialInfo() (req Tutorial, err error) {
+	err = c.Get(TutorialURL, &req)
+	return
 }
-/* func (c Discord) TutorialIndicatorsInfo() (struct{}, error) {
-	req := struct{}{}
-	err := c.Get(TutorialIndURL, &req)
-	return req, err
+/* func (c Discord) TutorialIndicatorsInfo() (req struct{}, err error) {
+	err = c.Get(TutorialIndURL, &req)
+	return
 } */

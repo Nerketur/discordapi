@@ -157,7 +157,6 @@ func (c Discord) Put(url string, req interface{}) error {
 func (c Discord) Get(url string, resp interface{}) error {
 	return c.send("GET", url, nil, resp)
 }
-
 func (c Discord) Delete(url string) error {
 	//TODO have a way to get responses recieved if any.
 	return c.send("DELETE", url, nil, nil)
