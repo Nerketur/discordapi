@@ -125,7 +125,10 @@ func (c Discord) send(method, url string, data, want interface{}) error {
 		case 404: //not found
 			return PermissionsError("Resource not found!")
 		case 429: //rate limit hit
-			return RateLimitError(message.Message + "--rate limit hit--") //TODO: add retryafter header
+			return RateLimitError{
+				Message: message.Message,
+				RetryAfter: resp.Header.Get("Retry-After"),
+			}
 		default:
 			return PermissionsError(fmt.Sprintf("%s -- %v", message.Message, resp.StatusCode))
 		}
