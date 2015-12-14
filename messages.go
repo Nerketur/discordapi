@@ -6,6 +6,8 @@ import (
 	"net/url"
 )
 
+//TODO: for 0.7, change to use <@ID> only
+//For now, this means SendTextMsg is a workaround
 func (c Discord) SendRawMsg(message, chanID string, ids []string) (Message, error) {
 	
 	req := MessageSend{

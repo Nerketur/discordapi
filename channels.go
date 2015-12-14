@@ -34,7 +34,7 @@ func (c _chan) FindIdx(id string) (int, error) {
 			return idx, nil
 		}
 	}
-	return -1, NameNotFoundError("id: " + id)
+	return -1, IDNotFoundError("id: " + id)
 }
 
 func (c Discord) SendTyping(chanID string) (err error) {
@@ -67,7 +67,7 @@ func (c Discord) ChanReplacePerms(chanID string, ur userOrRole, allow, deny Perm
 		Type: ur.Type(),
 	}
 	
-	if err := c.Put(url, req); err != nil {
+	if err = c.Put(url, req); err != nil {
 		return
 	}
 	
@@ -102,13 +102,16 @@ func (c Discord) ChanDelete(chanID string) (err error) {
 	if err = c.Delete(url); err != nil {
 		return
 	}
+	fmt.Println("deleted channel!")
+	return
+}
+func (c *Discord) PrivateChanDelete(chanID string) (err error) {
 	idx, err := _chan(c.MyChans).FindIdx(chanID)
 	if err != nil {
 		return
 	}
 	c.MyChans = append(c.MyChans[:idx-1], c.MyChans[idx+1:]...)
-	fmt.Println("deleted channel!")
-	return
+	return c.ChanDelete(chanID)
 }
 //{"max_age":1800,"max_uses":0,"temporary":false,"xkcdpass":true}
 //defaults: 1 day, 0, false, false

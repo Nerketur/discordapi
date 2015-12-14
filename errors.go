@@ -19,6 +19,7 @@ type RateLimitError struct{
 	RetryAfter string
 }
 type NameNotFoundError string
+type IDNotFoundError string
 type InvalidTypeError string
 
 func (e InvalidTypeError) Error() string {
@@ -26,6 +27,9 @@ func (e InvalidTypeError) Error() string {
 }
 func (c NameNotFoundError) Error() string {
 	return fmt.Sprintf("name not found: %s", string(c))
+}
+func (c IDNotFoundError) Error() string {
+	return fmt.Sprintf("ID not found: %s", string(c))
 }
 
 func (e RateLimitError) Error() string {

@@ -6,22 +6,16 @@ import (
 
 type _privchan []Channel
 
-func (c Discord) PrivateChan(name string) Channel {
-	resp, err := _privchan(c.MyChans).Find(name)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return resp
+func (c Discord) PrivateChan(name string) (Channel, error) {
+	return _privchan(c.MyChans).Find(name)
 }
-func (c Discord) PrivateChanFromID(ID string) Channel {
-	resp, err := _privchan(c.MyChans).FindID(ID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return resp
+func (c Discord) PrivateChanFromID(ID string) (Channel, error) {
+	return _privchan(c.MyChans).FindID(ID)
 }
-func (c Discord) PrivateChanID(name string) string {
-	return c.PrivateChan(name).ID
+
+func (c Discord) PrivateChanID(name string) (string, error) {
+	resp, err := c.PrivateChan(name)
+	return resp.ID, err
 }
 
 func (c _privchan) Find(name string) (Channel, error) {
@@ -58,7 +52,7 @@ func (c Discord) GetMyPrivateChans() ([]Channel, error) {
  * Pehaps not 100% POST compliant, but creates channel if it doesn't already exist
  * on a different URL
  */
-func (c Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
+func (c *Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
 	
 	req := struct{UserID string `json:"recipient_id"`}{
 		UserID: userID,
@@ -70,6 +64,7 @@ func (c Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
 		return
 	}
 	c.MyChans = append(c.MyChans, resp)
+	fmt.Printf("%#v\n", c.MyChans)
 	fmt.Println("created (opened) private channel successfully!")
 	return
 }
@@ -87,7 +82,7 @@ func (c Discord) DeletePrivateChan(userID string) error { //API also returns del
 		return err
 	}
 	
-	if err = c.ChanDelete(channel.ID); err != nil { //..but we ignore it.
+	if err = c.PrivateChanDelete(channel.ID); err != nil { //..but we ignore it.
 		return err
 	}
 	
