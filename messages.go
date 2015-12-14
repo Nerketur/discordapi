@@ -6,6 +6,26 @@ import (
 	"net/url"
 )
 
+//TODO: for 0.7, change to use <@ID> only
+//For now, this means SendTextMsg is a workaround
+func (c Discord) SendRawMsg(message, chanID string, ids []string) (Message, error) {
+	
+	req := MessageSend{
+		Content: message,
+		Mentions: ids,
+		Nonce: fmt.Sprintf("%v", time.Now().Unix()), //almost always different.
+		Tts: false,
+	}
+	resp := Message{}
+	err := c.Post(fmt.Sprintf(ChanMsgsURL, chanID), req, &resp)
+	if err != nil {
+		//fmt.Println(err)
+		return resp, err
+	}
+	
+	fmt.Println("sent message successfully!")
+	return resp, nil
+}
 func (c Discord) SendMsg(message, chanID string, usrs []User) (Message, error) {
 	//way 1.) look for @name and see if any users match the name
 	//way 2.) use a passed in []User to fill mentions array
@@ -21,21 +41,7 @@ func (c Discord) SendMsg(message, chanID string, usrs []User) (Message, error) {
 			ment[i] = u.ID
 		}
 	}
-	req := MessageSend{
-		Content: message,
-		Mentions: ment,
-		Nonce: fmt.Sprintf("%v", time.Now().Unix()), //almost always different.
-		Tts: false,
-	}
-	resp := Message{}
-	err := c.Post(fmt.Sprintf(ChanMsgsURL, chanID), req, &resp)
-	if err != nil {
-		//fmt.Println(err)
-		return resp, err
-	}
-	
-	fmt.Println("sent message successfully!")
-	return resp, nil
+	return c.SendRawMsg(message, chanID, ment)
 }
 func (c Discord) SendTextMsg(message, chanID string) (Message, error) {
 	return c.SendMsg(message, chanID, nil)

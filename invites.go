@@ -14,23 +14,21 @@ func (c Discord) InviteRevoke(code string) error {
 	return nil
 }
 //validation of code returns full invite
-func (c Discord) InviteInfo(code string) (Invite, error) {
+func (c Discord) InviteInfo(code string) (resp Invite, err error) {
 	url := fmt.Sprintf(InviteURL, code)
-	resp := Invite{}
-	if err := c.Get(url, &resp); err != nil {
-		return resp, err
+	if err = c.Get(url, &resp); err != nil {
+		return 
 	}
 	
 	fmt.Println("got invite info!")
-	return resp, nil
+	return
 }
-func (c Discord) InviteAccept(code string) (Invite, error) {
+func (c Discord) InviteAccept(code string) (resp Invite, err error) {
 	url := fmt.Sprintf(InviteURL, code)
-	resp := Invite{}
-	if err := c.Post(url, nil, &resp); err != nil {
-		return resp, err
+	if err = c.Post(url, nil, &resp); err != nil {
+		return
 	}
 	
 	fmt.Println("accepted invite info!")
-	return resp, nil
+	return
 }

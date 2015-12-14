@@ -4,12 +4,7 @@ import (
 	"fmt"
 )
 
-type NotFoundError string
 type guild []Guild
-
-func (c NotFoundError) Error() string {
-	return fmt.Sprintf("name not found: %s.  returning \"\"", string(c))
-}
 
 func (c Discord) Guild(name string) (Guild, error) {
 	return guild(c.MyGuilds).Find(name)
@@ -24,58 +19,73 @@ func (c guild) Find(name string) (Guild, error) {
 			return ele, nil
 		}
 	}
-	return Guild{}, NotFoundError(name)
+	return Guild{}, NameNotFoundError(name)
 }
 
-func (c Discord) GuildMembers(guildID string) ([]Member, error) {
-	
-	resp := make([]Member, 0)
-	err := c.Get(fmt.Sprintf(GuildMembersURL, guildID), &resp)
+//depricated.  may be removed with WS addition in 0.7
+func (c Discord) GuildMembers(guildID string) (resp []Member, err error) {
+	resp = make([]Member, 0)
+	err = c.Get(fmt.Sprintf(GuildMembersURL, guildID), &resp)
 	if err != nil {
-		//fmt.Println(err)
-		return resp, err
+		return
 	}
 	
 	fmt.Println("Got members successfully!")
-	return resp, nil
+	return
 }
 
-func (c Discord) GuildChannels(guildID string) ([]Channel, error) {
-	
-	resp := make([]Channel, 0)
-	err := c.Get(fmt.Sprintf(GuildChansURL, guildID), &resp)
+func (c Discord) GuildChannels(guildID string) (resp []Channel, err error) {
+	resp = make([]Channel, 0)
+	err = c.Get(fmt.Sprintf(GuildChansURL, guildID), &resp)
 	if err != nil {
-		//fmt.Println(err)
-		return resp, err
+		return
 	}
 	
 	fmt.Println("Got channels successfully!")
-	return resp, nil
+	return
 }
 
-func (c Discord) GetMyGuilds() ([]Guild, error) {
+func (c Discord) GuildChanCreate(guildID, name, kind string) (resp Channel, err error) {
+	if kind != "text" && kind != "voice" {
+		return resp, InvalidTypeError(kind)
+	}
+	url := fmt.Sprintf(GuildChansURL, guildID)
+	req := struct{
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}{
+		Name: name,
+		Type: kind,
+	}
+	if err = c.Post(url, req, &resp); err != nil {
+		return
+	}
 	
-	resp := make([]Guild, 0)
-	err := c.Get(MyGuildsURL, &resp)
+	fmt.Println("created channel!")
+	return
+}
+
+func (c Discord) GetMyGuilds() (resp []Guild, err error) {
+	resp = make([]Guild, 0)
+	err = c.Get(MyGuildsURL, &resp)
 	if err != nil {
 		//fmt.Println(err)
-		return resp, err
+		return
 	}
 	
 	fmt.Println("Got guilds successfully!")
-	return resp, nil
+	return
 }
 
-func (c Discord) GuildRoles(guildID string) ([]Role, error) {
-	
-	resp := make([]Role, 0)
-	err := c.Get(fmt.Sprintf(GuildRolesURL, guildID), &resp)
+func (c Discord) GuildRoles(guildID string) (resp []Role, err error) {
+	resp = make([]Role, 0)
+	err = c.Get(fmt.Sprintf(GuildRolesURL, guildID), &resp)
 	if err != nil {
-		return resp, err
+		return
 	}
 	
 	fmt.Println("Got roles successfully!")
-	return resp, nil
+	return
 }
 
 func (c Discord) GuildAddRole(guildID string) (Role, error) {
@@ -120,7 +130,6 @@ func (c Discord) GuildAddNamedRole(guildID, name string) (Role, error) {
 	return resp, nil
 }
 func (c Discord) GuildDeleteRole(guildID, roleID string) error {
-	
 	err := c.Delete(fmt.Sprintf(GuildRoleIDURL, guildID, roleID))
 	if err != nil {
 		return err
@@ -131,14 +140,17 @@ func (c Discord) GuildDeleteRole(guildID, roleID string) error {
 
 type Members []Member
 
-func (ms Members) Find(name string) []Member {
-	ret := make([]Member, 0)
+func (ms Members) Find(name string) (ret []Member, err error) {
+	ret = make([]Member, 0)
 	for _, m := range ms {
 		if m.User.Username == name {
 			ret = append(ret, m)
 		}
 	}
-	return ret
+	if len(ret) == 0 {
+		err = NameNotFoundError("member: " + name)
+	}
+	return ret, err
 }
 
 func (c Discord) GuildFindMember(guildID, n string) ([]Member, error) {
@@ -147,7 +159,7 @@ func (c Discord) GuildFindMember(guildID, n string) ([]Member, error) {
 	if err != nil {
 		return []Member{}, err
 	}
-	return Members(membs).Find(n), nil
+	return Members(membs).Find(n)
 }
 
 func (c Discord) GuildBans(guildID string) ([]Member, error) {
@@ -224,17 +236,16 @@ func (c Discord) GuildCreate(name, region string) (Guild, error) {
 	fmt.Println("created guild successfully!")
 	return resp, nil
 }
-func (c Discord) GuildEdit(guildID, name, region string) (Guild, error) {
+func (c Discord) GuildEdit(guildID, name, region string) (resp Guild, err error) {
 	req := make(map[string]string)
 	req["name"] = name
 	if region != "" {req["region"] = region}
-	resp := Guild{}
-	if err := c.Patch(fmt.Sprintf(GuildIDURL, guildID), req, &resp); err != nil {
-		return resp, err
+	if err = c.Patch(fmt.Sprintf(GuildIDURL, guildID), req, &resp); err != nil {
+		return
 	}
 	
 	fmt.Println("edited guild successfully!")
-	return resp, nil
+	return
 }
 func (c Discord) GuildLeave(guildID string) error {
 	//resp := Guild{}
@@ -301,6 +312,3 @@ func (c Discord) GuildIntegrations(guildID string) (resp []Integration, err erro
 	err = c.Get(fmt.Sprintf(GuildIntegrationsURL, guildID), &resp)
 	return
 }
-/*
-{"channel_id": null, "enabled": false}
-*/
