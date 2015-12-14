@@ -14,8 +14,12 @@ type ReadError string
 type CredsError Creds
 type HTTPError http.Response
 type PermissionsError string
-type RateLimitError string
+type RateLimitError struct{
+	Message    string
+	RetryAfter string
+}
 type NameNotFoundError string
+type IDNotFoundError string
 type InvalidTypeError string
 
 func (e InvalidTypeError) Error() string {
@@ -24,9 +28,12 @@ func (e InvalidTypeError) Error() string {
 func (c NameNotFoundError) Error() string {
 	return fmt.Sprintf("name not found: %s", string(c))
 }
+func (c IDNotFoundError) Error() string {
+	return fmt.Sprintf("ID not found: %s", string(c))
+}
 
 func (e RateLimitError) Error() string {
-	return fmt.Sprintf("permission error: %s\n", string(e))
+	return fmt.Sprintf("rate limit reached, retry after %v ms", e.Message, e.RetryAfter)
 }
 func (e PermissionsError) Error() string {
 	return fmt.Sprintf("permission error: %s\n", string(e))
