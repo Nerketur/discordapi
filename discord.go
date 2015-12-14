@@ -88,7 +88,7 @@ func (c Discord) Logout() (err error) {
 }
 
 func Version() string {
-	return "v0.5 alpha"
+	return "v0.6 alpha"
 }
 func VersionString() string {
 	return fmt.Sprintf("Discord Go API %s", Version())
