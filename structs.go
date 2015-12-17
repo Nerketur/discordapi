@@ -3,6 +3,8 @@ package discord
 import (
 	"net/http"
 	"time"
+	"encoding/json"
+	"fmt"
 )
 
 type Creds struct{
@@ -40,12 +42,37 @@ type Member struct{
 	Mute   bool      `json:"mute"`
 }
 	type User struct{
-		Username      string `json:"username"`
-		Discriminator string `json:"discriminator"` //4 digits
-		ID            string `json:"id"`
-		Avatar        string `json:"avatar"` // hex string (can be null)
+		Verified      bool    `json:"verified,omitempty"` //only for WS
+		Username      string  `json:"username"`
+		Email         string  `json:"email,omitempty"`    //only for WS
+		Discriminator string  `json:"-"` //4 digits
+		ID            string  `json:"id"`
+		Avatar        *string `json:"avatar"` // hex string (can be null)
 	}
 
+func (u *User) UnmarshalJSON(raw []byte) (err error) {
+	type user User
+	u1, discInt, discStr := user{}, struct{D int `json:"discriminator"`}{}, struct{D string `json:"discriminator"`}{}
+	err = json.Unmarshal(raw, &u1)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(raw, &discInt)
+	if err != nil {
+		err = json.Unmarshal(raw, &discStr)
+		if err != nil {
+			return
+		} else {
+			u1.Discriminator = fmt.Sprintf("%v", discStr)
+		}
+	} else {
+		u1.Discriminator = fmt.Sprintf("%v", discInt)
+	}
+	
+	*u = User(u1)
+	return
+}
+	
 type Message struct{
 	Nonce       string         `json:"nonce,omitempty"` //only used when sending messages
 	Attachments []Attachment   `json:"attachments"`
