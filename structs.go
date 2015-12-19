@@ -74,27 +74,29 @@ func (u *User) UnmarshalJSON(raw []byte) (err error) {
 }
 	
 type Message struct{
-	Nonce       string         `json:"nonce,omitempty"` //only used when sending messages
-	Attachments []Attachment   `json:"attachments"`
-	Tts         bool           `json:"tts"` 
-	Embeds      []Embed        `json:"embeds"`
-	Timestamp   time.Time      `json:"timestamp"`
-	MentionAll  bool           `json:"mention_everyone"`
-	ID          string         `json:"id"`
-	EditedTime  *time.Time     `json:"edited_timestamp"` //can be null (not worth seperate struct member)
-	Author      User           `json:"author"`
-	Content     string         `json:"content"`
-	ChanID      string         `json:"channel_id"`
+	Nonce       string       `json:"nonce,omitempty"` //only used when sending messages
+	Attachments []Attachment `json:"attachments"`
+	Tts         bool         `json:"tts"` 
+	Embeds      []Embed      `json:"embeds"`
+	Timestamp   time.Time    `json:"timestamp"`
+	MentionAll  bool         `json:"mention_everyone"`
+	ID          string       `json:"id"`
+	EditedTime  *time.Time   `json:"edited_timestamp"` //can be null (not worth seperate struct member)
+	Author      User         `json:"author"`
+	Content     string       `json:"content"`
+	ChanID      string       `json:"channel_id"`
 	//including json tag magic to have it look for both, and ignore whichever one doesn't exist.
-	MentionsNum []string       `json:"mentions,omitempty"` // Userids (usually only sent)
-	MentionsUse []User         `json:"mentions,omitempty"` // Userids (usually only receved)
+	MentionsNum []string     `json:"mentions,omitempty"` // Userids (usually only sent)
+	MentionsUse []User       `json:"mentions,omitempty"` // Users (usually only receved)
 }
 	type Attachment struct{
 		URL      string `json:"url"`      //URL of downloadable object
-		ProxyURL string `json:"poxy_url"` //URL of ?
+		ProxyURL string `json:"proxy_url"` //URL of ?
 		Size     int    `json:"size"`     //size in bytes
 		ID       string `json:"id"`       //id of attachment
 		Filename string `json:"filename"` //filename
+		Width    int    `json:"width,omitempty"`    //image width
+		Height   int    `json:"height,omitempty"`   //image height
 	}
 		type Embed struct{
 			Desc     string    `json:"description"`

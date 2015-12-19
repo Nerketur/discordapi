@@ -65,16 +65,34 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 		fmt.Println(err)
 	}
 	switch msg.Type {
+	//code duplication because of Go restrictions
+	//unsure how to make it shorter :(
 	case "READY":
 		data := READY{}
 		if err = json.Unmarshal(rawData, &data); err != nil {
 			fmt.Println(err)
 		}
-		//fmt.Printf("READY message: %s\n", msg.Data)
 		msg.Data = data
-		//fmt.Printf("READY message: %#v\n", msg)
+	case "PRESENCE_UPDATE":
+		data := PRESENCE_UPDATE{}
+		if err = json.Unmarshal(rawData, &data); err != nil {
+			fmt.Println(err)
+		}
+		msg.Data = data
+	case "MESSAGE_CREATE":
+		data := MESSAGE_CREATE{}
+		if err = json.Unmarshal(rawData, &data); err != nil {
+			fmt.Println(err)
+		}
+		msg.Data = data
+	case "TYPING_START":
+		data := TYPING_START{}
+		if err = json.Unmarshal(rawData, &data); err != nil {
+			fmt.Println(err)
+		}
+		msg.Data = data
 	default:
-		fmt.Printf("unknown message type: %q", msg.Type)
+		fmt.Printf("unknown message type: %q\n", msg.Type)
 	}
 	*m = WSMsg(msg)
 	return
@@ -105,6 +123,19 @@ type READY struct{ // op from server (0)
 	PrivateChannels   []Channel  `json:"private_channels"`
 	HeartbeatInterval uint64     `json:"heartbeat_interval"`
 	Guilds            []WSGuilds `json:"guilds"`
+}
+type MESSAGE_CREATE Message
+type TYPING_START struct{
+	ChanID    string `json:"channel_id"`
+	Timestamp uint64 `json:"timestamp"`
+	UserID    string `json:"user_id"`
+}
+type PRESENCE_UPDATE struct{
+	User    User     `json:"user"`
+	Status  string   `json:"status"`
+	Roles   []string `json:"roles, omitempty"`
+	GuildID string   `json:"guild_id"`
+	GameID  *int     `json:"game_id"`
 }
 type Properties struct{
 	OS              string `json:"$os"`
@@ -152,6 +183,7 @@ persist:
 
 func wsSend(con *websocket.Conn, msgSend chan WSMsg, stopWS, exit chan int) {
 	var nextMsg WSMsg
+	seq := 1
 	for {
 		select {
 		case <-stopWS:
@@ -167,7 +199,8 @@ func wsSend(con *websocket.Conn, msgSend chan WSMsg, stopWS, exit chan int) {
 		case nextMsg = <-msgSend:
 			//send the message on the channel to the connection
 			
-			
+			nextMsg.Seq = seq
+			seq++
 			fmt.Println("sending msg", nextMsg.Type)
 			j, _ := json.Marshal(nextMsg)
 			fmt.Printf("msg sent: `%s`\n", j)
@@ -231,7 +264,14 @@ func wsHeartbeat(con *websocket.Conn, msInterval uint64) {
 	}
 }
 
-func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, stopWS, exit chan int) {
+type Callback func(event string, data interface{})
+
+func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, stopWS, exit chan int, CB *Callback) {
+	if CB == nil {
+		def := Callback(func(string, interface{}) {}) //the do nothing callback
+		CB = &def
+	}
+
 	defer con.Close()
 
 	//process events until a close message is encountered, or network error occurs.
@@ -267,11 +307,27 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 					wsHeartbeat(con, parsed.HeartbeatInterval)
 				})
 				
+				continue //dont print ready event
+			case "PRESENCE_UPDATE":
+				//we don't actully do anything here.
+			case "TYPING_START":
+				//we don't actually do anything here.
+			case "MESSAGE_CREATE":
+				//we don't actually do anything here.
 			default:
-				fmt.Printf("unexpected type '%v':\n%s\n", msg.Type, msg.Data)
+				fmt.Print("unexpected ")
 			}
+			fmt.Printf("type read '%v':\n", msg.Type)
+			if d, ok := msg.Data.(*json.RawMessage); ok {
+				fmt.Printf("%s\n\n", d)
+			} else {
+				fmt.Printf("%#v\n\n", msg.Data)
+			}
+			
+			call := *CB
+			call(msg.Type, msg.Data)
 		default:
-			fmt.Printf("unexpected op '%v':\n%s\n", msg.Op, msg.Data)
+			fmt.Printf("unexpected op '%v':\n%#v\n\n", msg.Op, msg.Data)
 		}
 	}
 }
@@ -304,7 +360,7 @@ func (c Discord) WSInit(con *websocket.Conn, msgChan chan WSMsg) {
 	}
 }
 
-func (c Discord) WSConnect(stopWS, safe chan int) (err error) {
+func (c Discord) WSConnect(stopWS, safe chan int, call *Callback) (err error) {
 	gateway, err := c.Gateway()
 	if err != nil {
 		return
@@ -319,6 +375,6 @@ func (c Discord) WSConnect(stopWS, safe chan int) (err error) {
 	msgRead := make(chan WSMsg)
 	c.WSInit(con, msgSend)//ensure this is FIRST
 	fmt.Println("init sent")
-	go c.WSProcess(con, msgSend, msgRead, stopWS, safe)
+	go c.WSProcess(con, msgSend, msgRead, stopWS, safe, call)
 	return
 }
