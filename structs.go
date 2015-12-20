@@ -19,6 +19,9 @@ type Discord struct{
 	LoggingIn bool
 	MyGuilds  []Guild
 	MyChans   []Channel
+	sigStop   chan int
+	sigSafe   chan int
+	quitMsg   string
 }
 
 /////////////////////////////

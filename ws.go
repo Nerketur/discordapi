@@ -181,50 +181,67 @@ persist:
 	5.) set up a way to send said heartbeat every heartbeat_interval milliseconds.  it can't miss, but it doesn't have to be exactly that many every time.
 */
 
-func wsSend(con *websocket.Conn, msgSend chan WSMsg, stopWS, exit chan int) {
-	var nextMsg WSMsg
+func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan int) {
 	seq := 1
 	for {
 		select {
 		case <-stopWS:
 			//send close message
 			fmt.Println("got stop mssage")
-			fmt.Println("sending close frame (send)")
+			fmt.Println("sending close frame (send, before read)")
 			err := con.WriteControl(websocket.CloseMessage, nil, time.Now().Add(3*time.Second))
-			if err != nil {
-				fmt.Println(err)
-				exit <- 0
+			if err != nil { //if theres an error sending, assume corrupted, exit
+				fmt.Println("control frame send err:", err) 
+				close(exit)
+				close(msgSend)// panic on trying to send more
 			}
-			break
-		case nextMsg = <-msgSend:
-			//send the message on the channel to the connection
-			
-			nextMsg.Seq = seq
-			seq++
-			fmt.Println("sending msg", nextMsg.Type)
-			j, _ := json.Marshal(nextMsg)
-			fmt.Printf("msg sent: `%s`\n", j)
-			if err := con.WriteJSON(&nextMsg); err != nil {
-				fmt.Println("wsSend:",err)
+			return //end for, exit immediately
+			//its okay if we continue recieving a bit before the close message is read.
+		case nextMsg, ok := <-msgSend:
+			if ok {
+				//send the message on the channel to the connection
+				
+				nextMsg.Seq = seq
+				seq++
+				fmt.Println("sending msg", nextMsg.Type)
+				j, _ := json.Marshal(nextMsg)
+				fmt.Printf("msg sent: `%s`\n", j)
+				if err := con.WriteJSON(&nextMsg); err != nil {
+					fmt.Println("wsSend:",err)
+				}
+			} else {
+				//if ok is false, channel was closed by read, so send close frame and exit
+				fmt.Println("sending close frame (send, after read)")
+				con.WriteControl(websocket.CloseMessage, nil, time.Now())
+				close(other)
+				close(exit)
+				return
 			}
 		}
 	}
 }
 
-func wsRead(con *websocket.Conn, msgRead chan WSMsg, exit chan<- int) {
+func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit chan int) {
 	var nextMsg WSMsg
 	for {
 		//read the next message, put it on the channel
 		err := con.ReadJSON(&nextMsg)
 		if err != nil {
 			fmt.Println("wsRead:",err)
-			//close frame.  send then exit.
-			
-			fmt.Println("sending close frame (read)")
-			con.WriteControl(websocket.CloseMessage, nil, time.Now())
-			close(msgRead)
-			exit <- 0
-			break
+			select {
+			case <-stopWS:
+				//send already sent frame.  close and exit
+				fmt.Println("wsRead: send already sent, so exiting")
+				close(msgRead)
+				close(exit) // exit
+			default:
+				//send has NOT sent frame.  close send and exit
+				fmt.Println("wsRead: send not sent close, so closing send then exiting")
+				close(other)
+				//do NOT close exit until close frame sent)
+			}
+			//send will close exit channel
+			return
 		}
 		//fmt.Println("Read from conn")
 		//err = json.Unmarshal(msg, &nextMsg)
@@ -281,9 +298,9 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 	//a close frame recieved requires sending, then closing
 	//Gorrilla handles close frames by returning an error (along with the frame read)
 	fmt.Println("starting sender")
-	go wsRead(con, msgRead, exit) // if we err on read, we have to send close frame then exit.
+	go wsRead(con, msgSend, msgRead, stopWS, exit) // if we err on read, we have to send close frame then exit.
 	fmt.Println("starting reader")
-	go wsSend(con, msgSend, stopWS, exit) // if we send close frame, we have to wait for a response
+	go wsSend(con, msgSend, msgRead, stopWS, exit) // if we send close frame, we have to wait for a response
 	fmt.Println("starting process")
 	for msg := range msgRead {
 		//process messages
@@ -330,6 +347,7 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 			fmt.Printf("unexpected op '%v':\n%#v\n\n", msg.Op, msg.Data)
 		}
 	}
+	fmt.Println("Reads closed, exiting process")
 }
 func (c Discord) WSInit(con *websocket.Conn, msgChan chan WSMsg) {
 	//send init on wire

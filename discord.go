@@ -5,16 +5,19 @@ import (
 	"net/http"
 	"crypto/sha1"
 	"io/ioutil"
+	"time"
 )
 
 var debug bool = false
 
-func Login(email, pass string) (Discord, error) {
+func Login(email, pass string, call *Callback) (Discord, error) {
 	
 	client := Discord{ // only created once per client.
 		Client: &http.Client{ },
 		MyGuilds: []Guild{},
 		MyChans: []Channel{},
+		sigStop: make(chan int),
+		sigSafe: make(chan int),
 	}
 	
 	//start by trying to read the token from a file
@@ -73,10 +76,24 @@ func Login(email, pass string) (Discord, error) {
 		return client, err
 	}
 	fmt.Println("Arrays filled!")
-	
-	return client, nil
+	fmt.Println("Attempting websocket connection...")
+	err = client.WSConnect(client.sigStop, client.sigSafe, call)
+	if err != nil {
+		fmt.Println("websocket error:", err)
+	} else {
+		fmt.Println("websocket connected!")
+	}
+	return client, err
 }
 func (c Discord) Logout() (err error) {
+	//first wait for websocket'
+	fmt.Println("Waiting for websocket...")
+	select {
+	case <-c.sigSafe:
+		fmt.Println(c.quitMsg)
+		return
+	}
+
 	request := struct{Token string `json:"token"`}{Token: c.Token}
 	err = c.Post(LogoutURL, request, nil)
 	if err != nil {
@@ -85,6 +102,22 @@ func (c Discord) Logout() (err error) {
 	c.Token = ""
 	fmt.Println("User was logged out successfully! (once implemented server-side)")
 	return
+}
+
+func (c Discord) SetMaxRuntime(amt time.Duration, expireMsg, quitMsg string) {
+	fmt.Println("setting timer")
+	endTimer := time.NewTimer(amt)
+	c.quitMsg = quitMsg
+	for {
+		select {
+		case <-endTimer.C:
+			fmt.Println(expireMsg)
+			close(c.sigStop)
+		case <-c.sigSafe:
+			endTimer.Stop()
+		}
+		return
+	}
 }
 
 func Version() string {
