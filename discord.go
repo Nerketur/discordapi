@@ -10,7 +10,7 @@ import (
 
 var debug bool = false
 
-func Login(email, pass string, call *Callback) (Discord, error) {
+func Login(email, pass string) (Discord, error) {
 	
 	client := Discord{ // only created once per client.
 		Client: &http.Client{ },
@@ -18,6 +18,7 @@ func Login(email, pass string, call *Callback) (Discord, error) {
 		MyChans: []Channel{},
 		sigStop: make(chan int),
 		sigSafe: make(chan int),
+		sigTime: make(chan int),
 	}
 	
 	//start by trying to read the token from a file
@@ -76,22 +77,22 @@ func Login(email, pass string, call *Callback) (Discord, error) {
 		return client, err
 	}
 	fmt.Println("Arrays filled!")
-	fmt.Println("Attempting websocket connection...")
-	err = client.WSConnect(client.sigStop, client.sigSafe, call)
-	if err != nil {
-		fmt.Println("websocket error:", err)
-	} else {
-		fmt.Println("websocket connected!")
-	}
 	return client, err
 }
 func (c Discord) Logout() (err error) {
-	//first wait for websocket'
+	//wait for timer to fire
+    //we should probably signal websocket to close here.
+	
+	fmt.Println("Waiting for timer...")
+	_, _ = <-c.sigTime
+	//to signal the other one
+	fmt.Println("Sending stop")
+	close(c.sigStop)
+	//then wait for websocket
 	fmt.Println("Waiting for websocket...")
 	select {
 	case <-c.sigSafe:
-		fmt.Println(c.quitMsg)
-		return
+		fmt.Println("websocket shut down")
 	}
 
 	request := struct{Token string `json:"token"`}{Token: c.Token}
@@ -104,19 +105,27 @@ func (c Discord) Logout() (err error) {
 	return
 }
 
-func (c Discord) SetMaxRuntime(amt time.Duration, expireMsg, quitMsg string) {
+
+
+func (c Discord) Stop() {
+	//stop timer, WS, and process
+	close(c.sigTime)
+}
+func (c Discord) SetMaxRuntime(amt time.Duration, expireMsg string) {
 	fmt.Println("setting timer")
 	endTimer := time.NewTimer(amt)
-	c.quitMsg = quitMsg
-	for {
-		select {
-		case <-endTimer.C:
-			fmt.Println(expireMsg)
-			close(c.sigStop)
-		case <-c.sigSafe:
-			endTimer.Stop()
-		}
-		return
+	select {
+	case <-endTimer.C:
+		fmt.Println(expireMsg)
+		close(c.sigTime)
+		
+	case <-c.sigSafe:
+		fmt.Println("exit signal recieved, shutting down timer")
+		endTimer.Stop()
+		
+	case <-c.sigTime:
+		fmt.Println("exit signal recieved, shutting down timer")
+		endTimer.Stop()
 	}
 }
 

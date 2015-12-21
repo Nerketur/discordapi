@@ -21,7 +21,7 @@ type Discord struct{
 	MyChans   []Channel
 	sigStop   chan int
 	sigSafe   chan int
-	quitMsg   string
+	sigTime   chan int
 }
 
 /////////////////////////////

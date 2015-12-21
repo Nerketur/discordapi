@@ -5,6 +5,7 @@ import (
 	"time"
 	"github.com/gorilla/websocket"
 	"encoding/json"
+	"strconv"
 )
 
 type State struct{
@@ -24,12 +25,34 @@ type WSVoiceStates struct{
 	ChannelID string `json:"channel_id"`
 }
 type WSPres struct{
-	User   struct{
-		ID string `json:"id"`
-	} `json:"user"`
-	Status string  `json:"status"`
-	GameID *int    `json:"game_id"`
+	User      User     `json:"user"`
+	Status    string   `json:"status"`
+	Roles     []string `json:"roles,omitempty"`
+	GuildID   string   `json:"guild_id,omitempty"`
+	GameID    *int     `json:"game_id"`
+	GameIDStr string   `json:"game_id,omitempty"`
 }
+
+func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
+	type wsPres WSPres
+	tmp := wsPres{}
+	err = json.Unmarshal(raw, &tmp)
+	if err != nil {
+		fmt.Println("err in presence:")
+		return
+	}
+	if tmp.GameIDStr != "" {
+		tmpint, err := strconv.Atoi(tmp.GameIDStr)
+		if err != nil {
+			return err
+		}
+		tmp.GameID = &tmpint
+		tmp.GameIDStr = ""
+	}
+	*m = WSPres(tmp)
+	return
+}
+
 type WSGuilds struct{
 	VoiceStates  []WSVoiceStates `json:"voice_states"`
 	Roles        []Role          `json:"roles"`
@@ -61,82 +84,54 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 	msg := wsMsg{
 		Data: &rawData,
 	}
-	if err = json.Unmarshal(raw, &msg); err != nil {
-		fmt.Println(err)
-	}
+	err = json.Unmarshal(raw, &msg)
 	switch msg.Type {
 	//code duplication because of Go restrictions
 	//unsure how to make it shorter :(
 	case "READY":
 		data := READY{}
-		if err = json.Unmarshal(rawData, &data); err != nil {
-			fmt.Println(err)
-		}
+		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
 	case "PRESENCE_UPDATE":
 		data := PRESENCE_UPDATE{}
-		if err = json.Unmarshal(rawData, &data); err != nil {
-			fmt.Println(err)
-		}
+		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
 	case "MESSAGE_CREATE":
 		data := MESSAGE_CREATE{}
-		if err = json.Unmarshal(rawData, &data); err != nil {
-			fmt.Println(err)
-		}
+		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
 	case "TYPING_START":
 		data := TYPING_START{}
-		if err = json.Unmarshal(rawData, &data); err != nil {
-			fmt.Println(err)
-		}
+		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
 	default:
 		fmt.Printf("unknown message type: %q\n", msg.Type)
 	}
 	*m = WSMsg(msg)
-	return
-
-/*////////////////////
-
-	type wsMsg WSMsg
-	msg := wsMsg(m)
-	err = json.Unmarshal(data, &msg)
 	if err != nil {
-		return
+		fmt.Println(err)
 	}
-	switch msg.Type {
-	case "READY":
-		dat := READY{}
-		err := json.Unmarshal(data, &dat)
-		msg.Data = dat
-	
-	}
-////////////////////*/
+	return
 }
 
 type READY struct{ // op from server (0)
 	Version           int        `json:"v"`
 	User              User       `json:"user"`
 	SessionId         string     `json:"session_id"`
+	//SessionId         int        `json:"session_id"`//testing error
 	ReadState         []State    `json:"read_state"`
 	PrivateChannels   []Channel  `json:"private_channels"`
 	HeartbeatInterval uint64     `json:"heartbeat_interval"`
 	Guilds            []WSGuilds `json:"guilds"`
 }
 type MESSAGE_CREATE Message
+type PRESENCE_UPDATE WSPres
 type TYPING_START struct{
 	ChanID    string `json:"channel_id"`
 	Timestamp uint64 `json:"timestamp"`
 	UserID    string `json:"user_id"`
 }
-type PRESENCE_UPDATE struct{
-	User    User     `json:"user"`
-	Status  string   `json:"status"`
-	Roles   []string `json:"roles, omitempty"`
-	GuildID string   `json:"guild_id"`
-	GameID  *int     `json:"game_id"`
-}
+
 type Properties struct{
 	OS              string `json:"$os"`
 	Browser         string `json:"$browser"`
@@ -227,6 +222,10 @@ func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit chan in
 		//read the next message, put it on the channel
 		err := con.ReadJSON(&nextMsg)
 		if err != nil {
+			if _, ok := err.(*websocket.CloseError); !ok {
+				//act as if stopWS has been called
+				close(stopWS)
+			}
 			fmt.Println("wsRead:",err)
 			select {
 			case <-stopWS:
@@ -309,6 +308,10 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 		case 0:
 			//default, most
 			switch msg.Type {
+			//here, we only catch types that change internal state
+			//as of yet, the oly one to do that is "READY"
+			//  (because heartbeats)
+			//All the rest of the coding is done by the handeler of the callback.
 			case "READY":
 				parsed, ok := msg.Data.(READY)
 				if !ok {
@@ -323,22 +326,18 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 				time.AfterFunc(totalDur-time.Since(start), func() {
 					wsHeartbeat(con, parsed.HeartbeatInterval)
 				})
-				
-				continue //dont print ready event
-			case "PRESENCE_UPDATE":
-				//we don't actully do anything here.
-			case "TYPING_START":
-				//we don't actually do anything here.
-			case "MESSAGE_CREATE":
-				//we don't actually do anything here.
 			default:
-				fmt.Print("unexpected ")
-			}
-			fmt.Printf("type read '%v':\n", msg.Type)
-			if d, ok := msg.Data.(*json.RawMessage); ok {
-				fmt.Printf("%s\n\n", d)
-			} else {
-				fmt.Printf("%#v\n\n", msg.Data)
+				d, ok := msg.Data.(*json.RawMessage)
+				if ok {
+					//json.rawmessage, so unexpected type
+					fmt.Print("unexpected ")
+				}
+				fmt.Printf("type read '%v':\n", msg.Type)
+				if ok {
+					fmt.Printf("%s\n\n", d)
+				} else {
+					fmt.Printf("%#v\n\n", msg.Data)
+				}
 			}
 			
 			call := *CB
@@ -378,7 +377,8 @@ func (c Discord) WSInit(con *websocket.Conn, msgChan chan WSMsg) {
 	}
 }
 
-func (c Discord) WSConnect(stopWS, safe chan int, call *Callback) (err error) {
+func (c Discord) WSConnect(call *Callback) (err error) {
+	
 	gateway, err := c.Gateway()
 	if err != nil {
 		return
@@ -393,6 +393,6 @@ func (c Discord) WSConnect(stopWS, safe chan int, call *Callback) (err error) {
 	msgRead := make(chan WSMsg)
 	c.WSInit(con, msgSend)//ensure this is FIRST
 	fmt.Println("init sent")
-	go c.WSProcess(con, msgSend, msgRead, stopWS, safe, call)
+	go c.WSProcess(con, msgSend, msgRead, c.sigStop, c.sigSafe, call)
 	return
 }
