@@ -117,8 +117,8 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 type READY struct{ // op from server (0)
 	Version           int        `json:"v"`
 	User              User       `json:"user"`
-	SessionId         string     `json:"session_id"`
-	//SessionId         int        `json:"session_id"`//testing error
+	//SessionId         string     `json:"session_id"`
+	SessionId         int        `json:"session_id"`//testing error
 	ReadState         []State    `json:"read_state"`
 	PrivateChannels   []Channel  `json:"private_channels"`
 	HeartbeatInterval uint64     `json:"heartbeat_interval"`
@@ -216,15 +216,15 @@ func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan in
 	}
 }
 
-func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit chan int) {
+func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit, timer chan int) {
 	var nextMsg WSMsg
 	for {
 		//read the next message, put it on the channel
 		err := con.ReadJSON(&nextMsg)
 		if err != nil {
 			if _, ok := err.(*websocket.CloseError); !ok {
-				//act as if stopWS has been called
-				close(stopWS)
+				//act as if timer elapsed
+				close(timer)
 			}
 			fmt.Println("wsRead:",err)
 			select {
@@ -297,7 +297,7 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 	//a close frame recieved requires sending, then closing
 	//Gorrilla handles close frames by returning an error (along with the frame read)
 	fmt.Println("starting sender")
-	go wsRead(con, msgSend, msgRead, stopWS, exit) // if we err on read, we have to send close frame then exit.
+	go wsRead(con, msgSend, msgRead, stopWS, exit, c.sigTime) // if we err on read, we have to send close frame then exit.
 	fmt.Println("starting reader")
 	go wsSend(con, msgSend, msgRead, stopWS, exit) // if we send close frame, we have to wait for a response
 	fmt.Println("starting process")
