@@ -5,7 +5,7 @@ import (
 	"time"
 	"github.com/gorilla/websocket"
 	"encoding/json"
-	"strconv"
+	//"strconv"
 )
 
 type State struct{
@@ -29,11 +29,14 @@ type WSPres struct{
 	Status    string   `json:"status"`
 	Roles     []string `json:"roles,omitempty"`
 	GuildID   string   `json:"guild_id,omitempty"`
-	GameID    *int     `json:"game_id"`
-	GameIDStr string   `json:"game_id,omitempty"`
+	*Game      `json:"game"`
 }
 
-func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
+type Game struct{
+	Name string `json:"name"`
+} 
+
+/* func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
 	type wsPres WSPres
 	tmp := wsPres{}
 	err = json.Unmarshal(raw, &tmp)
@@ -51,24 +54,7 @@ func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
 	}
 	*m = WSPres(tmp)
 	return
-}
-
-type WSGuilds struct{
-	VoiceStates  []WSVoiceStates `json:"voice_states"`
-	Roles        []Role          `json:"roles"`
-	Region       string          `json:"region"`
-	Presences    []WSPres        `json:"presences"`
-	OwnerID      string          `json:"owner_id"`
-	Name         string          `json:"name"`
-	//Large        bool            `json:"large"`
-	Members      []Member        `json:"members"`
-	JoinedAt     time.Time       `json:"joined_at"`
-	ID           string          `json:"id"`
-	Icon         *string         `json:"icon"`
-	Channels     []Channel       `json:"channels"`
-	AfkTimeout   uint64          `json:"afk_timeout"`
-	AfkChannelID *string         `json:"afk_channel_id"`
-}
+} */
 
 type WSMsg struct{
     Type string      `json:"t,omitempty"`
@@ -117,12 +103,12 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 type READY struct{ // op from server (0)
 	Version           int        `json:"v"`
 	User              User       `json:"user"`
-	//SessionId         string     `json:"session_id"`
-	SessionId         int        `json:"session_id"`//testing error
+	SessionId         string     `json:"session_id"`
+	//SessionId         int        `json:"session_id"`//testing error
 	ReadState         []State    `json:"read_state"`
 	PrivateChannels   []Channel  `json:"private_channels"`
 	HeartbeatInterval uint64     `json:"heartbeat_interval"`
-	Guilds            []WSGuilds `json:"guilds"`
+	Guilds            []Guild    `json:"guilds"`
 }
 type MESSAGE_CREATE Message
 type PRESENCE_UPDATE WSPres
@@ -326,6 +312,12 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 				time.AfterFunc(totalDur-time.Since(start), func() {
 					wsHeartbeat(con, parsed.HeartbeatInterval)
 				})
+				//fill arrays
+				fmt.Println("filling guild and chan arrys...")
+				c.MyGuilds = parsed.Guilds
+				c.MyChans = parsed.PrivateChannels
+				fmt.Println("Arrays filled!")
+
 			default:
 				d, ok := msg.Data.(*json.RawMessage)
 				if ok {

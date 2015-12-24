@@ -147,17 +147,20 @@ type Channel struct{
 	}
 
 type Guild struct{
-	AfkTimeout   int       `json:"afk_timeout"`
-	Joined       time.Time `json:"joined_at"`
-	AfkChanID    *string   `json:"afk_channel_id"`
-	ID           string    `json:"id"`
-	Icon         string    `json:"icon"`
-	Name         string    `json:"name"`
-	Roles        []Role    `json:"roles"`
-	Region       string    `json:"region"`
-	EmbedChanID  string    `json:"embed_channel_id"`
-	EmbedEnabled bool      `json:"embed_enabled"`
-	OwnerID      string    `json:"owner_id"`
+	VoiceStates  []WSVoiceStates `json:"voice_states"` //only READY
+	Roles        []Role          `json:"roles"`
+	Region       string          `json:"region"`
+	Presences    []WSPres        `json:"presences"` // only READY
+	OwnerID      string          `json:"owner_id"`
+	Name         string          `json:"name"`
+	//Large        bool            `json:"large"` //only READY
+	Members      []Member        `json:"members"` //only READY
+	JoinedAt     time.Time       `json:"joined_at"`
+	ID           string          `json:"id"`
+	Icon         *string         `json:"icon"`
+	Channels     []Channel       `json:"channels"` // only READY
+	AfkTimeout   uint64          `json:"afk_timeout"`
+	AfkChannelID *string         `json:"afk_channel_id"`
 }
 	type Role struct{
 		Managed     bool   `json:"managed,omitempty"`
