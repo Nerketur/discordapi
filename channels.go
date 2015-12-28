@@ -122,7 +122,7 @@ func (c Discord) ChanInviteAllCreate(chanID string, age, uses *uint, temp, xkcd 
 		Age  *uint   `json:"max_age,omitempty"`
 		Code *string `json:"validate,omitempty"`
 		Temp *bool   `json:"temporary,omitempty"`
-		Uses *uint    `json:"max_uses,omitempty"`
+		Uses *uint   `json:"max_uses,omitempty"`
 		XKCD *bool   `json:"xkcdpass,omitempty"`
 	}{
 		Age:  age,

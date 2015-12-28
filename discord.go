@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"crypto/sha1"
 	"io/ioutil"
+	"time"
 )
 
 var debug bool = false
@@ -15,6 +16,9 @@ func Login(email, pass string) (Discord, error) {
 		Client: &http.Client{ },
 		MyGuilds: []Guild{},
 		MyChans: []Channel{},
+		sigStop: make(chan int),
+		sigSafe: make(chan int),
+		sigTime: make(chan int),
 	}
 	
 	//start by trying to read the token from a file
@@ -63,20 +67,25 @@ func Login(email, pass string) (Discord, error) {
 		}
 	}
 	fmt.Printf("User %s (token %s) logged in successfully!\n", email, client.Token)
-	fmt.Println("filling guild and chan arrys...")
-	client.MyGuilds, err = client.GetMyGuilds()
-	if err != nil {
-		return client, err
-	}
-	client.MyChans, err = client.GetMyPrivateChans()
-	if err != nil {
-		return client, err
-	}
-	fmt.Println("Arrays filled!")
-	
-	return client, nil
+	//arrays filled with READY event
+	return client, err
 }
 func (c Discord) Logout() (err error) {
+	//wait for timer to fire
+    //we should probably signal websocket to close here.
+	
+	fmt.Println("Waiting for timer...")
+	_, _ = <-c.sigTime
+	//to signal the other one
+	fmt.Println("Sending stop")
+	close(c.sigStop)
+	//then wait for websocket
+	fmt.Println("Waiting for websocket...")
+	select {
+	case <-c.sigSafe:
+		fmt.Println("websocket shut down")
+	}
+
 	request := struct{Token string `json:"token"`}{Token: c.Token}
 	err = c.Post(LogoutURL, request, nil)
 	if err != nil {
@@ -87,8 +96,32 @@ func (c Discord) Logout() (err error) {
 	return
 }
 
+
+
+func (c Discord) Stop() {
+	//stop timer, WS, and process
+	close(c.sigTime)
+}
+func (c Discord) SetMaxRuntime(amt time.Duration, expireMsg string) {
+	fmt.Println("setting timer")
+	endTimer := time.NewTimer(amt)
+	select {
+	case <-endTimer.C:
+		fmt.Println(expireMsg)
+		close(c.sigTime)
+		
+	case <-c.sigSafe:
+		fmt.Println("exit signal recieved, shutting down timer")
+		endTimer.Stop()
+		
+	case <-c.sigTime:
+		fmt.Println("exit signal recieved, shutting down timer")
+		endTimer.Stop()
+	}
+}
+
 func Version() string {
-	return "v0.6 alpha"
+	return "v0.7 alpha"
 }
 func VersionString() string {
 	return fmt.Sprintf("Discord Go API %s", Version())

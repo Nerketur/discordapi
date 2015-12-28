@@ -3,6 +3,8 @@ package discord
 import (
 	"net/http"
 	"time"
+	"encoding/json"
+	"fmt"
 )
 
 type Creds struct{
@@ -17,6 +19,9 @@ type Discord struct{
 	LoggingIn bool
 	MyGuilds  []Guild
 	MyChans   []Channel
+	sigStop   chan int
+	sigSafe   chan int
+	sigTime   chan int
 }
 
 /////////////////////////////
@@ -28,7 +33,7 @@ type Discord struct{
 type MessageSend struct{ 
 	Content  string   `json:"content"`
 	Mentions []string `json:"mentions"`
-	Nonce    string   `json:"nonce"`
+	Nonce    int64    `json:"nonce,string"`
 	Tts      bool     `json:"tts"`
 }
 
@@ -40,34 +45,61 @@ type Member struct{
 	Mute   bool      `json:"mute"`
 }
 	type User struct{
-		Username      string `json:"username"`
-		Discriminator string `json:"discriminator"` //4 digits
-		ID            string `json:"id"`
-		Avatar        string `json:"avatar"` // hex string (can be null)
+		Verified      bool    `json:"verified,omitempty"` //only for WS
+		Username      string  `json:"username"`
+		Email         string  `json:"email,omitempty"`    //only for WS
+		Discriminator string  `json:"-"` //4 digits
+		ID            string  `json:"id"`
+		Avatar        *string `json:"avatar"` // hex string (can be null)
 	}
 
+func (u *User) UnmarshalJSON(raw []byte) (err error) {
+	type user User
+	u1, discInt, discStr := user{}, struct{D int `json:"discriminator"`}{}, struct{D string `json:"discriminator"`}{}
+	err = json.Unmarshal(raw, &u1)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(raw, &discInt)
+	if err != nil {
+		err = json.Unmarshal(raw, &discStr)
+		if err != nil {
+			return
+		} else {
+			u1.Discriminator = fmt.Sprintf("%v", discStr)
+		}
+	} else {
+		u1.Discriminator = fmt.Sprintf("%v", discInt)
+	}
+	
+	*u = User(u1)
+	return
+}
+	
 type Message struct{
-	Nonce       string         `json:"nonce,omitempty"` //only used when sending messages
-	Attachments []Attachment   `json:"attachments"`
-	Tts         bool           `json:"tts"` 
-	Embeds      []Embed        `json:"embeds"`
-	Timestamp   time.Time      `json:"timestamp"`
-	MentionAll  bool           `json:"mention_everyone"`
-	ID          string         `json:"id"`
-	EditedTime  *time.Time     `json:"edited_timestamp"` //can be null (not worth seperate struct member)
-	Author      User           `json:"author"`
-	Content     string         `json:"content"`
-	ChanID      string         `json:"channel_id"`
+	Nonce       int64        `json:"nonce,string,omitempty"` //only used when sending messages
+	Attachments []Attachment `json:"attachments"`
+	Tts         bool         `json:"tts"` 
+	Embeds      []Embed      `json:"embeds"`
+	Timestamp   time.Time    `json:"timestamp"`
+	MentionAll  bool         `json:"mention_everyone"`
+	ID          string       `json:"id"`
+	EditedTime  *time.Time   `json:"edited_timestamp"` //can be null (not worth seperate struct member)
+	Author      User         `json:"author"`
+	Content     string       `json:"content"`
+	ChanID      string       `json:"channel_id"`
 	//including json tag magic to have it look for both, and ignore whichever one doesn't exist.
-	MentionsNum []string       `json:"mentions,omitempty"` // Userids (usually only sent)
-	MentionsUse []User         `json:"mentions,omitempty"` // Userids (usually only receved)
+	MentionsNum []string     `json:"mentions,omitempty"` // Userids (usually only sent)
+	MentionsUse []User       `json:"mentions,omitempty"` // Users (usually only receved)
 }
 	type Attachment struct{
 		URL      string `json:"url"`      //URL of downloadable object
-		ProxyURL string `json:"poxy_url"` //URL of ?
+		ProxyURL string `json:"proxy_url"` //URL of ?
 		Size     int    `json:"size"`     //size in bytes
 		ID       string `json:"id"`       //id of attachment
 		Filename string `json:"filename"` //filename
+		Width    int    `json:"width,omitempty"`    //image width
+		Height   int    `json:"height,omitempty"`   //image height
 	}
 		type Embed struct{
 			Desc     string    `json:"description"`
@@ -115,17 +147,20 @@ type Channel struct{
 	}
 
 type Guild struct{
-	AfkTimeout   int       `json:"afk_timeout"`
-	Joined       time.Time `json:"joined_at"`
-	AfkChanID    *string   `json:"afk_channel_id"`
-	ID           string    `json:"id"`
-	Icon         string    `json:"icon"`
-	Name         string    `json:"name"`
-	Roles        []Role    `json:"roles"`
-	Region       string    `json:"region"`
-	EmbedChanID  string    `json:"embed_channel_id"`
-	EmbedEnabled bool      `json:"embed_enabled"`
-	OwnerID      string    `json:"owner_id"`
+	VoiceStates  []WSVoiceStates `json:"voice_states"` //only READY
+	Roles        []Role          `json:"roles"`
+	Region       string          `json:"region"`
+	Presences    []WSPres        `json:"presences"` // only READY
+	OwnerID      string          `json:"owner_id"`
+	Name         string          `json:"name"`
+	//Large        bool            `json:"large"` //only READY
+	Members      []Member        `json:"members"` //only READY
+	JoinedAt     time.Time       `json:"joined_at"`
+	ID           string          `json:"id"`
+	Icon         *string         `json:"icon"`
+	Channels     []Channel       `json:"channels"` // only READY
+	AfkTimeout   uint64          `json:"afk_timeout"`
+	AfkChannelID *string         `json:"afk_channel_id"`
 }
 	type Role struct{
 		Managed     bool   `json:"managed,omitempty"`
