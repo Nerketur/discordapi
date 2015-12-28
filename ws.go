@@ -35,7 +35,23 @@ type WSPres struct{
 type Game struct{
 	Name string `json:"name"`
 } 
-
+func (m *Game) UnmarshalJSON(raw []byte) (err error) {
+	var rawMess json.RawMessage
+	rawDat := struct{
+		Name *json.RawMessage `json:"name"`
+	}{
+		Name: &rawMess,
+	}
+	err = json.Unmarshal(raw, &rawDat)
+	if err != nil {
+		return // sould be no error.  if there is, something is very wrong
+	}
+	msg := Game{
+		Name: fmt.Sprint(rawMess), // convert to string
+	}
+	m = &msg
+	return
+}
 /* func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
 	type wsPres WSPres
 	tmp := wsPres{}
@@ -96,9 +112,39 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 	*m = WSMsg(msg)
 	if err != nil {
 		fmt.Println(err)
+		fmt.Printf("type: %s\n", msg.Type)
+		if msg.Type != "READY" {
+			fmt.Printf("rawdata:\n\t%s\n", rawData)
+			fmt.Printf("struct:\n\t%#v\n\n", msg.Data)
+		} else {
+			if perr, ok := err.(*json.UnmarshalTypeError); ok {
+				fmt.Printf("here: %s\n\n", rawData[perr.Offset-100:perr.Offset+100])
+			}
+		}
 	}
 	return
 }
+
+func (m *MESSAGE_CREATE) UnmarshalJSON(raw []byte) (err error) {
+	msg := Message{}
+	non := struct{
+		Nonce int64
+	}{}
+	err = json.Unmarshal(raw, &msg)
+	if err != nil {
+		err = json.Unmarshal(raw, &non)
+		if err != nil {
+			return
+		}
+		if non.Nonce != 0 {
+			msg.Nonce = non.Nonce
+		}
+	}
+	
+	*m = MESSAGE_CREATE(msg)
+	return nil
+}
+
 
 type READY struct{ // op from server (0)
 	Version           int        `json:"v"`
@@ -114,6 +160,7 @@ type MESSAGE_CREATE Message
 type PRESENCE_UPDATE WSPres
 type TYPING_START struct{
 	ChanID    string `json:"channel_id"`
+	//ChanID    int    `json:"channel_id"`  //check error
 	Timestamp uint64 `json:"timestamp"`
 	UserID    string `json:"user_id"`
 }
@@ -172,8 +219,14 @@ func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan in
 			fmt.Println("sending close frame (send, before read)")
 			err := con.WriteControl(websocket.CloseMessage, nil, time.Now().Add(3*time.Second))
 			if err != nil { //if theres an error sending, assume corrupted, exit
-				fmt.Println("control frame send err:", err) 
-				close(exit)
+				fmt.Println("control frame send err:", err)
+				select {
+					case _, ok := <-exit:
+						if ok {
+							close(exit)
+						}
+					default:
+				}
 				close(msgSend)// panic on trying to send more
 			}
 			return //end for, exit immediately
@@ -208,10 +261,12 @@ func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit, timer 
 		//read the next message, put it on the channel
 		err := con.ReadJSON(&nextMsg)
 		if err != nil {
+			
 			if _, ok := err.(*websocket.CloseError); !ok {
 				//act as if timer elapsed
 				close(timer)
 			}
+			//print value from connection
 			fmt.Println("wsRead:",err)
 			select {
 			case <-stopWS:

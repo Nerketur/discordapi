@@ -33,7 +33,7 @@ type Discord struct{
 type MessageSend struct{ 
 	Content  string   `json:"content"`
 	Mentions []string `json:"mentions"`
-	Nonce    string   `json:"nonce"`
+	Nonce    int64    `json:"nonce,string"`
 	Tts      bool     `json:"tts"`
 }
 
@@ -77,7 +77,7 @@ func (u *User) UnmarshalJSON(raw []byte) (err error) {
 }
 	
 type Message struct{
-	Nonce       string       `json:"nonce,omitempty"` //only used when sending messages
+	Nonce       int64        `json:"nonce,string,omitempty"` //only used when sending messages
 	Attachments []Attachment `json:"attachments"`
 	Tts         bool         `json:"tts"` 
 	Embeds      []Embed      `json:"embeds"`

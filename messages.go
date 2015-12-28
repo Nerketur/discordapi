@@ -6,14 +6,14 @@ import (
 	"net/url"
 )
 
-//TODO: for 0.7, change to use <@ID> only
+//TODO: for 0.7.1, change to use <@ID> only
 //For now, this means SendTextMsg is a workaround
 func (c Discord) SendRawMsg(message, chanID string, ids []string) (Message, error) {
 	
 	req := MessageSend{
 		Content: message,
 		Mentions: ids,
-		Nonce: fmt.Sprintf("%v", time.Now().Unix()), //almost always different.
+		Nonce: time.Now().Unix(), //almost always different.
 		Tts: false,
 	}
 	resp := Message{}
@@ -28,7 +28,7 @@ func (c Discord) SendRawMsg(message, chanID string, ids []string) (Message, erro
 }
 func (c Discord) SendMsg(message, chanID string, usrs []User) (Message, error) {
 	//way 1.) look for @name and see if any users match the name
-	//way 2.) use a passed in []User to fill mentions array
+	//way 2.) use a passed in []User to mention
 	//for now useway 2
 	size := 0
 	
