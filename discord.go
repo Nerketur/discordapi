@@ -67,16 +67,7 @@ func Login(email, pass string) (Discord, error) {
 		}
 	}
 	fmt.Printf("User %s (token %s) logged in successfully!\n", email, client.Token)
-	fmt.Println("filling guild and chan arrys...")
-	client.MyGuilds, err = client.GetMyGuilds()
-	if err != nil {
-		return client, err
-	}
-	client.MyChans, err = client.GetMyPrivateChans()
-	if err != nil {
-		return client, err
-	}
-	fmt.Println("Arrays filled!")
+	//arrays filled with READY event
 	return client, err
 }
 func (c Discord) Logout() (err error) {
@@ -130,7 +121,7 @@ func (c Discord) SetMaxRuntime(amt time.Duration, expireMsg string) {
 }
 
 func Version() string {
-	return "v0.6 alpha"
+	return "v0.7 alpha"
 }
 func VersionString() string {
 	return fmt.Sprintf("Discord Go API %s", Version())

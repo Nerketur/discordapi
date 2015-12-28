@@ -5,7 +5,7 @@ import (
 	"time"
 	"github.com/gorilla/websocket"
 	"encoding/json"
-	"strconv"
+	//"strconv"
 )
 
 type State struct{
@@ -29,11 +29,30 @@ type WSPres struct{
 	Status    string   `json:"status"`
 	Roles     []string `json:"roles,omitempty"`
 	GuildID   string   `json:"guild_id,omitempty"`
-	GameID    *int     `json:"game_id"`
-	GameIDStr string   `json:"game_id,omitempty"`
+	      *Game        `json:"game"`
 }
 
-func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
+type Game struct{
+	Name string `json:"name"`
+} 
+func (m *Game) UnmarshalJSON(raw []byte) (err error) {
+	var rawMess json.RawMessage
+	rawDat := struct{
+		Name *json.RawMessage `json:"name"`
+	}{
+		Name: &rawMess,
+	}
+	err = json.Unmarshal(raw, &rawDat)
+	if err != nil {
+		return // sould be no error.  if there is, something is very wrong
+	}
+	msg := Game{
+		Name: fmt.Sprint(rawMess), // convert to string
+	}
+	m = &msg
+	return
+}
+/* func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
 	type wsPres WSPres
 	tmp := wsPres{}
 	err = json.Unmarshal(raw, &tmp)
@@ -51,24 +70,7 @@ func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
 	}
 	*m = WSPres(tmp)
 	return
-}
-
-type WSGuilds struct{
-	VoiceStates  []WSVoiceStates `json:"voice_states"`
-	Roles        []Role          `json:"roles"`
-	Region       string          `json:"region"`
-	Presences    []WSPres        `json:"presences"`
-	OwnerID      string          `json:"owner_id"`
-	Name         string          `json:"name"`
-	//Large        bool            `json:"large"`
-	Members      []Member        `json:"members"`
-	JoinedAt     time.Time       `json:"joined_at"`
-	ID           string          `json:"id"`
-	Icon         *string         `json:"icon"`
-	Channels     []Channel       `json:"channels"`
-	AfkTimeout   uint64          `json:"afk_timeout"`
-	AfkChannelID *string         `json:"afk_channel_id"`
-}
+} */
 
 type WSMsg struct{
     Type string      `json:"t,omitempty"`
@@ -110,9 +112,39 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 	*m = WSMsg(msg)
 	if err != nil {
 		fmt.Println(err)
+		fmt.Printf("type: %s\n", msg.Type)
+		if msg.Type != "READY" {
+			fmt.Printf("rawdata:\n\t%s\n", rawData)
+			fmt.Printf("struct:\n\t%#v\n\n", msg.Data)
+		} else {
+			if perr, ok := err.(*json.UnmarshalTypeError); ok {
+				fmt.Printf("here: %s\n\n", rawData[perr.Offset-100:perr.Offset+100])
+			}
+		}
 	}
 	return
 }
+
+func (m *MESSAGE_CREATE) UnmarshalJSON(raw []byte) (err error) {
+	msg := Message{}
+	non := struct{
+		Nonce int64
+	}{}
+	err = json.Unmarshal(raw, &msg)
+	if err != nil {
+		err = json.Unmarshal(raw, &non)
+		if err != nil {
+			return
+		}
+		if non.Nonce != 0 {
+			msg.Nonce = non.Nonce
+		}
+	}
+	
+	*m = MESSAGE_CREATE(msg)
+	return nil
+}
+
 
 type READY struct{ // op from server (0)
 	Version           int        `json:"v"`
@@ -122,12 +154,13 @@ type READY struct{ // op from server (0)
 	ReadState         []State    `json:"read_state"`
 	PrivateChannels   []Channel  `json:"private_channels"`
 	HeartbeatInterval uint64     `json:"heartbeat_interval"`
-	Guilds            []WSGuilds `json:"guilds"`
+	Guilds            []Guild    `json:"guilds"`
 }
 type MESSAGE_CREATE Message
 type PRESENCE_UPDATE WSPres
 type TYPING_START struct{
 	ChanID    string `json:"channel_id"`
+	//ChanID    int    `json:"channel_id"`  //check error
 	Timestamp uint64 `json:"timestamp"`
 	UserID    string `json:"user_id"`
 }
@@ -186,8 +219,14 @@ func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan in
 			fmt.Println("sending close frame (send, before read)")
 			err := con.WriteControl(websocket.CloseMessage, nil, time.Now().Add(3*time.Second))
 			if err != nil { //if theres an error sending, assume corrupted, exit
-				fmt.Println("control frame send err:", err) 
-				close(exit)
+				fmt.Println("control frame send err:", err)
+				select {
+					case _, ok := <-exit:
+						if ok {
+							close(exit)
+						}
+					default:
+				}
 				close(msgSend)// panic on trying to send more
 			}
 			return //end for, exit immediately
@@ -216,16 +255,18 @@ func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan in
 	}
 }
 
-func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit chan int) {
+func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit, timer chan int) {
 	var nextMsg WSMsg
 	for {
 		//read the next message, put it on the channel
 		err := con.ReadJSON(&nextMsg)
 		if err != nil {
+			
 			if _, ok := err.(*websocket.CloseError); !ok {
-				//act as if stopWS has been called
-				close(stopWS)
+				//act as if timer elapsed
+				close(timer)
 			}
+			//print value from connection
 			fmt.Println("wsRead:",err)
 			select {
 			case <-stopWS:
@@ -297,7 +338,7 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 	//a close frame recieved requires sending, then closing
 	//Gorrilla handles close frames by returning an error (along with the frame read)
 	fmt.Println("starting sender")
-	go wsRead(con, msgSend, msgRead, stopWS, exit) // if we err on read, we have to send close frame then exit.
+	go wsRead(con, msgSend, msgRead, stopWS, exit, c.sigTime) // if we err on read, we have to send close frame then exit.
 	fmt.Println("starting reader")
 	go wsSend(con, msgSend, msgRead, stopWS, exit) // if we send close frame, we have to wait for a response
 	fmt.Println("starting process")
@@ -326,6 +367,12 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 				time.AfterFunc(totalDur-time.Since(start), func() {
 					wsHeartbeat(con, parsed.HeartbeatInterval)
 				})
+				//fill arrays
+				fmt.Println("filling guild and chan arrys...")
+				c.MyGuilds = parsed.Guilds
+				c.MyChans = parsed.PrivateChannels
+				fmt.Println("Arrays filled!")
+
 			default:
 				d, ok := msg.Data.(*json.RawMessage)
 				if ok {
