@@ -29,7 +29,7 @@ type WSPres struct{
 	Status    string   `json:"status"`
 	Roles     []string `json:"roles,omitempty"`
 	GuildID   string   `json:"guild_id,omitempty"`
-	*Game      `json:"game"`
+	      *Game        `json:"game"`
 }
 
 type Game struct{

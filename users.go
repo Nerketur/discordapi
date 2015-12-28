@@ -18,34 +18,32 @@ func (c Discord) PrivateChanID(name string) (string, error) {
 	return resp.ID, err
 }
 
-func (c _privchan) Find(name string) (Channel, error) {
-	for _, ele := range c {
+func (c _privchan) Find(name string) (ele Channel, err error) {
+	for _, ele = range c {
 		if ele.Recipient.Username == name {
-			return ele, nil
+			return
 		}
 	}
-	return Channel{}, NameNotFoundError(name)
+	err = NameNotFoundError(name)
+	return
 }
-func (c _privchan) FindID(ID string) (Channel, error) {
-	for _, ele := range c {
+func (c _privchan) FindID(ID string) (ele Channel, err error) {
+	for _, ele = range c {
 		if ele.Recipient.ID == ID {
-			return ele, nil
+			return
 		}
 	}
-	return Channel{}, IDNotFoundError(ID)
+	err = IDNotFoundError(ID)
+	return
 }
 
-func (c Discord) GetMyPrivateChans() ([]Channel, error) {
-	
-	resp := make([]Channel, 0)
-	err := c.Get(MyChansURL, &resp)
-	if err != nil {
-		//fmt.Println(err)
-		return resp, err
+func (c Discord) GetMyPrivateChans() (resp []Channel, err error) {
+	resp = make([]Channel, 0)
+	if err = c.Get(MyChansURL, &resp); err != nil {
+		return
 	}
-	
 	fmt.Println("got private channels successfully!")
-	return resp, nil
+	return
 }
 
 /*
@@ -53,13 +51,11 @@ func (c Discord) GetMyPrivateChans() ([]Channel, error) {
  * on a different URL
  */
 func (c *Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
-	
 	req := struct{UserID string `json:"recipient_id"`}{
 		UserID: userID,
 	}
 	//TODO: test other userIDs and see if it says forbidden
 	err = c.Post(MyChansURL, req, &resp) // can also use our userID instead of @me
-	
 	if err != nil {
 		return
 	}
@@ -81,11 +77,9 @@ func (c Discord) DeletePrivateChan(userID string) error { //API also returns del
 	if err != nil {
 		return err
 	}
-	
 	if err = c.PrivateChanDelete(channel.ID); err != nil { //..but we ignore it.
 		return err
 	}
-	
 	fmt.Println("removed private channel (from list) successfully!")
 	return nil
 }

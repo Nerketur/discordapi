@@ -6,32 +6,29 @@ import (
 	"net/url"
 )
 
+//TODO: for 0.7.1, add abiltity to change TTS
 //TODO: for 0.7.1, change to use <@ID> only
 //For now, this means SendTextMsg is a workaround
-func (c Discord) SendRawMsg(message, chanID string, ids []string) (Message, error) {
-	
+func (c Discord) SendRawMsg(message, chanID string, ids []string) (resp Message, err error) {
 	req := MessageSend{
 		Content: message,
 		Mentions: ids,
 		Nonce: time.Now().Unix(), //almost always different.
 		Tts: false,
 	}
-	resp := Message{}
-	err := c.Post(fmt.Sprintf(ChanMsgsURL, chanID), req, &resp)
+	err = c.Post(fmt.Sprintf(ChanMsgsURL, chanID), req, &resp)
 	if err != nil {
 		//fmt.Println(err)
-		return resp, err
+		return
 	}
-	
 	fmt.Println("sent message successfully!")
-	return resp, nil
+	return
 }
 func (c Discord) SendMsg(message, chanID string, usrs []User) (Message, error) {
 	//way 1.) look for @name and see if any users match the name
 	//way 2.) use a passed in []User to mention
 	//for now useway 2
 	size := 0
-	
 	if usrs != nil {
 		size = len(usrs)
 	}
@@ -101,25 +98,25 @@ func (c Discord) EditMsg(msg Message, newMsg string, usrs []User) (Message, erro
 func (c Discord) EditTextMsg(msg Message, newMsg string) (Message, error) {
 	return c.EditMsg(msg, newMsg, nil)
 }
-func (c Discord) AckMsg(msg Message) error {
+func (c Discord) AckMsg(msg Message) (err error) {
 	//need messageID and channelID
-	err := c.Post(fmt.Sprintf(MsgAckURL, msg.ChanID, msg.ID), nil, nil)
+	err = c.Post(fmt.Sprintf(MsgAckURL, msg.ChanID, msg.ID), nil, nil)
 	if err != nil {
 		//fmt.Println(err)
-		return err
+		return
 	}
 	
 	fmt.Println("message acknowledged successfully!")
-	return nil
+	return
 }
-func (c Discord) DelMsg(msg Message) error {
+func (c Discord) DelMsg(msg Message) (err error) {
 	//need messageID and channelID
-	err := c.Delete(fmt.Sprintf(MsgURL, msg.ChanID, msg.ID))
+	err = c.Delete(fmt.Sprintf(MsgURL, msg.ChanID, msg.ID))
 	if err != nil {
 		//fmt.Println(err)
-		return err
+		return
 	}
 	
 	fmt.Println("deleted message successfully!")
-	return nil
+	return
 }
