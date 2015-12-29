@@ -13,23 +13,24 @@ type State struct{
 	LastMessageId string `json:"last_message_id,omitempty"`
 	ID            string `json:"id"`
 }
-type WSVoiceStates struct{
-	UserID    string `json:"user_id"`
-	Token     string `json:"token"`
-	Suppress  bool   `json:"suppress"`
-	SessionID string `json:"session_id"`
-	SelfMute  bool   `json:"self_mute"`
-	SelfDeaf  bool   `json:"self_deaf"`
-	Mute      bool   `json:"mute"`
-	Deaf      bool   `json:"deaf"`
-	ChannelID string `json:"channel_id"`
+type WSVoiceState struct{
+	UserID    string  `json:"user_id"`
+	Token     string  `json:"token"`
+	Suppress  bool    `json:"suppress"`
+	SessionID string  `json:"session_id"`
+	SelfMute  *bool   `json:"self_mute"`
+	SelfDeaf  *bool   `json:"self_deaf"`
+	Mute      bool    `json:"mute"`
+	Deaf      bool    `json:"deaf"`
+	ChannelID *string `json:"channel_id"`
+	GuildID   string  `json:"guild_id"`
 }
 type WSPres struct{
 	User      User     `json:"user"`
 	Status    string   `json:"status"`
 	Roles     []string `json:"roles,omitempty"`
 	GuildID   string   `json:"guild_id,omitempty"`
-	Game      *Game     `json:"game"`
+	Game      *Game    `json:"game"`
 }
 
 type Game struct{
@@ -98,12 +99,92 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 		data := PRESENCE_UPDATE{}
 		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
+	case "GUILD_CREATE":
+		data := GUILD_CREATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_UPDATE":
+		data := GUILD_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_DELETE":
+		data := GUILD_DELETE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_ROLE_CREATE":
+		data := GUILD_ROLE_CREATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_ROLE_UPDATE":
+		data := GUILD_ROLE_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_ROLE_DELETE":
+		data := GUILD_ROLE_DELETE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_MEMBER_ADD":
+		data := GUILD_MEMBER_ADD{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_MEMBER_UPDATE":
+		data := GUILD_MEMBER_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_MEMBER_REMOVE":
+		data := GUILD_MEMBER_REMOVE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_BAN_ADD":
+		data := GUILD_BAN_ADD{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_BAN_REMOVE":
+		data := GUILD_BAN_REMOVE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_INTEGRATIONS_UPDATE":
+		data := GUILD_INTEGRATIONS_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "CHANNEL_CREATE":
+		data := CHANNEL_CREATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "CHANNEL_UPDATE":
+		data := CHANNEL_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "CHANNEL_DELETE":
+		data := CHANNEL_DELETE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
 	case "MESSAGE_CREATE":
 		data := MESSAGE_CREATE{}
 		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
+	case "MESSAGE_UPDATE":
+		data := MESSAGE_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "MESSAGE_DELETE":
+		data := MESSAGE_DELETE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "MESSAGE_ACK":
+		data := MESSAGE_ACK{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
 	case "TYPING_START":
 		data := TYPING_START{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "USER_SETTINGS_UPDATE":
+		data := USER_SETTINGS_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "VOICE_STATE_UPDATE":
+		data := VOICE_STATE_UPDATE{}
 		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
 	default:
@@ -160,7 +241,82 @@ type READY struct{ // op from server (0)
 	HeartbeatInterval uint64     `json:"heartbeat_interval"`
 	Guilds            []Guild    `json:"guilds"`
 }
+/*
++ means parsed
+- means eventual new event
+    +CHANNEL_CREATE
+    +CHANNEL_CREATE (private)
+    +CHANNEL_DELETE
+    +CHANNEL_DELETE (private)
+    +CHANNEL_UPDATE
+    +GUILD_CREATE
+    -GUILD_CREATE (unavailable)
+    +GUILD_DELETE
+    -GUILD_DELETE (unavailable)
+    +GUILD_UPDATE
+    +GUILD_BAN_ADD
+    +GUILD_BAN_REMOVE
+    +GUILD_MEMBER_ADD
+    +GUILD_MEMBER_REMOVE
+    +GUILD_MEMBER_UPDATE
+    +GUILD_ROLE_CREATE
+    +GUILD_ROLE_DELETE
+    +GUILD_ROLE_UPDATE
+    +GUILD_INTEGRATIONS_UPDATE
+    +MESSAGE_CREATE
+    +MESSAGE_DELETE
+    +MESSAGE_UPDATE
+    +MESSAGE_UPDATE (embeds only)
+    +PRESENCE_UPDATE
+    +READY
+    +TYPING_START
+    +USER_SETTINGS_UPDATE
+    +VOICE_STATE_UPDATE
+	+MESSAGE_ACK
+    OP 7
+
+*/
+type MESSAGE_ACK struct{
+	MessageID string `json:"message_id"`
+	ChannelID string `json:"channel_id"`
+}
+type USER_SETTINGS_UPDATE Setting
+type VOICE_STATE_UPDATE WSVoiceState
+type GUILD_CREATE Guild
+type GUILD_UPDATE Guild
+type GUILD_DELETE Guild
+type GUILD_MEMBER_ADD Member
+type GUILD_MEMBER_UPDATE Member
+type GUILD_MEMBER_REMOVE Member
+type GUILD_BAN_ADD struct{
+	GuildID string `json:"guild_id"`
+	User    User   `json:"user"`
+}
+type GUILD_BAN_REMOVE struct{
+	GuildID string `json:"guild_id"`
+	User    User   `json:"user"`
+}
+type GUILD_ROLE_CREATE struct{
+	GuildID string `json:"guild_id"`
+	Role    Role   `json:"role"`
+}
+type GUILD_ROLE_UPDATE struct{
+	GuildID string `json:"guild_id"`
+	Role    Role   `json:"role"`
+}
+type GUILD_ROLE_DELETE struct{
+	GuildID string `json:"guild_id"`
+	RoleID  string `json:"role_id"`
+}
+type GUILD_INTEGRATIONS_UPDATE struct{
+	GuildID string `json:"guild_id"`
+}
+type CHANNEL_CREATE Channel
+type CHANNEL_UPDATE Channel
+type CHANNEL_DELETE Channel
 type MESSAGE_CREATE Message
+type MESSAGE_UPDATE Message
+type MESSAGE_DELETE Message
 type PRESENCE_UPDATE WSPres
 type TYPING_START struct{
 	ChanID    string `json:"channel_id"`
@@ -377,6 +533,9 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 				c.MyChans = parsed.PrivateChannels
 				fmt.Println("Arrays filled!")
 
+			//TODO: add code differentiating between unavailable guild
+			// messages and normal messages
+			// (make new events)
 			default:
 				d, ok := msg.Data.(*json.RawMessage)
 				if ok {
