@@ -121,7 +121,7 @@ func (c Discord) SetMaxRuntime(amt time.Duration, expireMsg string) {
 }
 
 func Version() string {
-	return "v0.7 alpha"
+	return "v0.7.1 alpha"
 }
 func VersionString() string {
 	return fmt.Sprintf("Discord Go API %s", Version())
