@@ -29,7 +29,7 @@ type WSPres struct{
 	Status    string   `json:"status"`
 	Roles     []string `json:"roles,omitempty"`
 	GuildID   string   `json:"guild_id,omitempty"`
-	      *Game        `json:"game"`
+	Game      *Game     `json:"game"`
 }
 
 type Game struct{
@@ -108,6 +108,10 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 		msg.Data = data
 	default:
 		fmt.Printf("unknown message type: %q\n", msg.Type)
+	}
+	if msg.Type != "READY" {
+		fmt.Printf("object:\n\t%#v\n", msg)
+		fmt.Printf("raw:\n\t%s\n", rawData)
 	}
 	*m = WSMsg(msg)
 	if err != nil {
