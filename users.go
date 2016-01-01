@@ -59,10 +59,23 @@ func (c *Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
 	if err != nil {
 		return
 	}
-	c.MyChans = append(c.MyChans, resp)
+	c.AddPrivChan(resp)
 	fmt.Printf("%#v\n", c.MyChans)
 	fmt.Println("created (opened) private channel successfully!")
 	return
+}
+
+func (c *Discord) AddPrivChan(ch Channel) {
+	c.MyChans = append(c.MyChans, ch)
+}
+func (c *Discord) RemPrivChanIdx(idx int) {
+	if idx == 0 {
+		c.MyChans = c.MyChans[1:]
+	} else if idx == len(c.MyChans)-1 {
+		c.MyChans = c.MyChans[:idx-1]
+	} else {
+		c.MyChans = append(c.MyChans[:idx-1], c.MyChans[idx+1:]...)
+	}
 }
 
 /*
@@ -77,7 +90,7 @@ func (c Discord) DeletePrivateChan(userID string) error { //API also returns del
 	if err != nil {
 		return err
 	}
-	if err = c.PrivateChanDelete(channel.ID); err != nil { //..but we ignore it.
+	if err = c.PrivateChanDelete(channel.ID); err != nil {
 		return err
 	}
 	fmt.Println("removed private channel (from list) successfully!")

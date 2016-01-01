@@ -231,6 +231,7 @@ func (m *MESSAGE_CREATE) UnmarshalJSON(raw []byte) (err error) {
 }
 
 
+//TODO add compression
 type READY struct{ // op from server (0)
 	Version           int        `json:"v"`
 	User              User       `json:"user"`
@@ -370,6 +371,7 @@ persist:
 */
 
 func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan int) {
+	defer fmt.Println("wsSend goroutine stopped")
 	seq := 1
 	for {
 		select {
@@ -380,14 +382,14 @@ func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan in
 			err := con.WriteControl(websocket.CloseMessage, nil, time.Now().Add(3*time.Second))
 			if err != nil { //if theres an error sending, assume corrupted, exit
 				fmt.Println("control frame send err:", err)
-				select {
-					case _, ok := <-exit:
-						if ok {
-							close(exit)
-						}
-					default:
-				}
 				close(msgSend)// panic on trying to send more
+			}
+			select {
+				case _, ok := <-exit:
+					if ok {
+						close(exit)
+					}
+				default:
 			}
 			return //end for, exit immediately
 			//its okay if we continue recieving a bit before the close message is read.
@@ -416,6 +418,7 @@ func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan in
 }
 
 func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit, timer chan int) {
+	defer fmt.Println("wsRead goroutine stopped")
 	var nextMsg WSMsg
 	for {
 		//read the next message, put it on the channel
@@ -508,6 +511,12 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 		switch msg.Op {
 		case 0:
 			//default, most
+			d, ok := msg.Data.(*json.RawMessage)
+			if ok {
+				//json.rawmessage, so unexpected type
+				fmt.Print("unexpected ")
+			}
+			fmt.Printf("type read '%v':\n", msg.Type)
 			switch msg.Type {
 			//here, we only catch types that change internal state
 			//as of yet, the oly one to do that is "READY"
@@ -536,15 +545,35 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 			//TODO: add code differentiating between unavailable guild
 			// messages and normal messages
 			// (make new events)
-			default:
-				d, ok := msg.Data.(*json.RawMessage)
-				if ok {
-					//json.rawmessage, so unexpected type
-					fmt.Print("unexpected ")
+			case "GUILD_CREATE","GUILD_UPDATE","GUILD_DELETE":
+				//parse guild stuff
+				var parsed Guild
+				switch msg.Data.(type) {
+				case GUILD_CREATE:
+					tmp, _ := msg.Data.(GUILD_CREATE)
+					parsed = Guild(tmp)
+				case GUILD_UPDATE:
+					tmp, _ := msg.Data.(GUILD_UPDATE)
+					parsed = Guild(tmp)
+				case GUILD_DELETE:
+					tmp, _ := msg.Data.(GUILD_DELETE)
+					parsed = Guild(tmp)
+				default:
+					fmt.Printf("Expected GUILD_*, got %T\n", msg.Data)
+					close(c.sigTime)
 				}
-				fmt.Printf("type read '%v':\n", msg.Type)
+				c.GuildParseWS(msg.Type, parsed)
+			case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE","GUILD_MEMBER_REMOVE":
+				//parse guild member stuff
+				parsed, ok := msg.Data.(Member)
+				if !ok {
+					fmt.Printf("Expected Member, got %T\n", msg.Data)
+					break
+				}
+				c.GuildMemberParseWS(msg.Type, parsed)
+			default:
 				if ok {
-					fmt.Printf("%s\n\n", d)
+					fmt.Printf("%s\n(needs adding)\n\n", d)
 				} else {
 					fmt.Printf("%#v\n\n", msg.Data)
 				}
@@ -557,6 +586,11 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 		}
 	}
 	fmt.Println("Reads closed, exiting process")
+	select {
+		case <-c.sigTime:
+		default:
+			close(c.sigTime)
+	}
 }
 func (c Discord) WSInit(con *websocket.Conn, msgChan chan WSMsg) {
 	//send init on wire

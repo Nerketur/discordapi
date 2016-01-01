@@ -21,6 +21,77 @@ func (c guild) Find(name string) (Guild, error) {
 	}
 	return Guild{}, NameNotFoundError(name)
 }
+func (c guild) FindID(ID string) (Guild, error) {
+	for _, ele := range c {
+		if ele.ID == ID {
+			return ele, nil
+		}
+	}
+	return Guild{}, IDNotFoundError(ID)
+}
+func (c guild) FindIDIdx(ID string) (int, error) {
+	for idx, ele := range c {
+		if ele.ID == ID {
+			return idx, nil
+		}
+	}
+	return -1, IDNotFoundError(ID)
+}
+
+func (c *Discord) AddGuild(g Guild) {
+	c.MyGuilds = append(c.MyGuilds, g)
+}
+func (c *Discord) RemGuild(idx int) {
+	if idx == 0 {
+		c.MyGuilds = c.MyGuilds[1:]
+	} else if idx == len(c.MyGuilds)-1 {
+		c.MyGuilds = c.MyGuilds[:idx-1]
+	} else {
+		c.MyGuilds = append(c.MyGuilds[:idx-1], c.MyGuilds[idx+1:]...)
+	}
+}
+
+func (c Discord) GuildParseWS(event string, g Guild) {
+	if g.Unavailable != nil {
+		return // ignore these messages for now
+	}
+	oldIdx, err := guild(c.MyGuilds).FindIDIdx(g.ID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	/* switch event {
+	case "GUILD_UPDATE":
+		c.RemGuild(oldIdx)
+		fallthrough
+	case "GUILD_CREATE":
+		c.AddGuild(g)
+	case "GUILD_DELETE":
+		c.RemGuild(oldIdx)
+	}*/
+	if event != "GUILD_CREATE" && err == nil {
+		c.RemGuild(oldIdx)
+	}
+	if event != "GUILD_DELETE" {
+		c.AddGuild(g)
+	}
+}
+
+func (c Discord) GuildMemberParseWS(event string, g Member) {
+	if event != "GUILD_MEMBER_ADD" {
+		//c.RemGuildMember(oldIdx)
+	}
+	if event != "GUILD_MEMBER_REMOVE" {
+		//c.AddGuildMember(oldIdx)
+	}
+	/* switch event {
+	case "GUILD_MEMBER_ADD":
+		
+	case "GUILD_MEMBER_UPDATE":
+		
+	case "GUILD_MEMBER_REMOVE":
+		
+	}*/
+}
 
 //depricated.  may be removed because only in WS
 func (c Discord) GuildMembers(guildID string) (resp []Member, err error) {
