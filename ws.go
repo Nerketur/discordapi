@@ -370,85 +370,66 @@ persist:
 	5.) set up a way to send said heartbeat every heartbeat_interval milliseconds.  it can't miss, but it doesn't have to be exactly that many every time.
 */
 
-func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan int) {
-	defer fmt.Println("wsSend goroutine stopped")
+func stopSend(con *websocket.Conn, done chan int) {
+	//send close message
+	fmt.Println("wsSend: got stop mssage")
+	//fmt.Println("wsSend: closing send")
+	//its okay if we continue recieving a bit before the close message is read.
+	//channel was closed, send close frame and exit
+	fmt.Println("wsSend: sending close frame")
+	err := con.WriteControl(websocket.CloseMessage, nil, time.Now().Add(3*time.Second))
+	if err != nil { //if theres an error sending, print err, exit
+		fmt.Println("wsSend: control frame send err:", err)
+	}
+	close(done)
+}
+
+func wsSend(con *websocket.Conn, msgSend chan WSMsg, done, readDone, stopWS chan int) {
+	defer fmt.Println("wsSend: goroutine stopped")
 	seq := 1
 	for {
 		select {
 		case <-stopWS:
-			//send close message
-			fmt.Println("got stop mssage")
-			fmt.Println("sending close frame (send, before read)")
-			err := con.WriteControl(websocket.CloseMessage, nil, time.Now().Add(3*time.Second))
-			if err != nil { //if theres an error sending, assume corrupted, exit
-				fmt.Println("control frame send err:", err)
-				close(msgSend)// panic on trying to send more
-			}
-			select {
-				case _, ok := <-exit:
-					if ok {
-						close(exit)
-					}
-				default:
-			}
-			return //end for, exit immediately
-			//its okay if we continue recieving a bit before the close message is read.
-		case nextMsg, ok := <-msgSend:
+			stopSend(con, done)
+			return
+		case <-readDone:
+			stopSend(con, done)
+			return
+		case nextMsg, ok := <- msgSend:
 			if ok {
 				//send the message on the channel to the connection
-				
 				nextMsg.Seq = seq
 				seq++
-				fmt.Println("sending msg", nextMsg.Type)
+				fmt.Println("wsSend: sending msg", nextMsg.Type)
 				j, _ := json.Marshal(nextMsg)
-				fmt.Printf("msg sent: `%s`\n", j)
+				fmt.Printf("wsSend: msg sent: `%s`\n", j)
 				if err := con.WriteJSON(&nextMsg); err != nil {
 					fmt.Println("wsSend:",err)
 				}
-			} else {
-				//if ok is false, channel was closed by read, so send close frame and exit
-				fmt.Println("sending close frame (send, after read)")
-				con.WriteControl(websocket.CloseMessage, nil, time.Now())
-				close(other)
-				close(exit)
-				return
 			}
 		}
 	}
 }
 
-func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit, timer chan int) {
-	defer fmt.Println("wsRead goroutine stopped")
+func wsRead(con *websocket.Conn, msgRead chan WSMsg, done chan int) {
+	defer fmt.Println("wsRead: goroutine stopped")
 	var nextMsg WSMsg
 	for {
 		//read the next message, put it on the channel
 		err := con.ReadJSON(&nextMsg)
 		if err != nil {
-			
-			if _, ok := err.(*websocket.CloseError); !ok {
-				//act as if timer elapsed
-				close(timer)
-			}
-			//print value from connection
-			fmt.Println("wsRead:",err)
-			select {
-			case <-stopWS:
-				//send already sent frame.  close and exit
-				fmt.Println("wsRead: send already sent, so exiting")
-				close(msgRead)
-				close(exit) // exit
-			default:
-				//send has NOT sent frame.  close send and exit
-				fmt.Println("wsRead: send not sent close, so closing send then exiting")
-				close(other)
-				//do NOT close exit until close frame sent)
-			}
-			//send will close exit channel
+			fmt.Println("wsRead:", err)
+			fmt.Println("wsRead: stooping")
+			//we either need to send close, or we already sent close.
+			//either way, close readdone
+			close(done)  // this signals to wssend to start close if needed
+			close(msgRead)  // this signals to process to stop
+			//and exit
 			return
 		}
 		//fmt.Println("Read from conn")
 		//err = json.Unmarshal(msg, &nextMsg)
-		fmt.Printf("Read %T from conn\n", nextMsg.Data)
+		fmt.Printf("wsRead: Read %T from conn\n", nextMsg.Data)
 		nextMsg.time = time.Now()
 		msgRead <- nextMsg
 	}
@@ -459,8 +440,8 @@ func wsSendBeat(con *websocket.Conn, now time.Time) {
 		Op: 1,
 		Data: now.Unix(),
 	}
-	fmt.Println("sent beat")
-	con.WriteJSON(beat)
+	fmt.Println("sent [no] beat")
+	//con.WriteJSON(beat)
 	j, _ := json.Marshal(beat)
 	fmt.Printf("beat: %s\n", j)
 }
@@ -486,7 +467,7 @@ func wsHeartbeat(con *websocket.Conn, msInterval uint64) {
 
 type Callback func(event string, data interface{})
 
-func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, stopWS, exit chan int, CB *Callback) {
+func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB *Callback) {
 	if CB == nil {
 		def := Callback(func(string, interface{}) {}) //the do nothing callback
 		CB = &def
@@ -500,10 +481,14 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 	//A close frame sent requires waiting for recieving before closing
 	//a close frame recieved requires sending, then closing
 	//Gorrilla handles close frames by returning an error (along with the frame read)
+	
+	//accomplish this with read channel and sendsdone channels, which we wait for
+	readDone := make(chan int)
+	sendDone := make(chan int)
 	fmt.Println("starting sender")
-	go wsRead(con, msgSend, msgRead, stopWS, exit, c.sigTime) // if we err on read, we have to send close frame then exit.
+	go wsRead(con, msgRead, readDone)
 	fmt.Println("starting reader")
-	go wsSend(con, msgSend, msgRead, stopWS, exit) // if we send close frame, we have to wait for a response
+	go wsSend(con, msgSend, sendDone, readDone, c.sigStop)
 	fmt.Println("starting process")
 	for msg := range msgRead {
 		//process messages
@@ -560,7 +545,7 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 					parsed = Guild(tmp)
 				default:
 					fmt.Printf("Expected GUILD_*, got %T\n", msg.Data)
-					close(c.sigTime)
+					close(c.sigStop)
 				}
 				c.GuildParseWS(msg.Type, parsed)
 			case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE","GUILD_MEMBER_REMOVE":
@@ -585,12 +570,19 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 			fmt.Printf("unexpected op '%v':\n%#v\n\n", msg.Op, msg.Data)
 		}
 	}
-	fmt.Println("Reads closed, exiting process")
-	select {
-		case <-c.sigTime:
-		default:
-			close(c.sigTime)
+	fmt.Println("Reads closed, waiting for send to finish")
+	<-sendDone
+	fmt.Println("waiting for read to finish")
+	<-readDone //just in case
+	
+	fmt.Println("closing safe/exit")
+	close(c.sigSafe)
+	select { // used to lose sigtime if not closed
+	case <-c.sigTime: //dont close if closed
+	default: //close if not closed
+		close(c.sigTime)
 	}
+	fmt.Println("all finished, exiting process")
 }
 func (c Discord) WSInit(con *websocket.Conn, msgChan chan WSMsg) {
 	//send init on wire
@@ -637,6 +629,6 @@ func (c Discord) WSConnect(call *Callback) (err error) {
 	msgRead := make(chan WSMsg)
 	c.WSInit(con, msgSend)//ensure this is FIRST
 	fmt.Println("init sent")
-	go c.WSProcess(con, msgSend, msgRead, c.sigStop, c.sigSafe, call)
+	go c.WSProcess(con, msgSend, msgRead, call)
 	return
 }
