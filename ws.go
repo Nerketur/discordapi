@@ -33,6 +33,8 @@ type WSPres struct{
 	Game      *Game    `json:"game"`
 }
 
+type _pres []WSPres
+
 type Game struct{
 	Name string `json:"name"`
 } 
@@ -318,7 +320,7 @@ type CHANNEL_DELETE Channel
 type MESSAGE_CREATE Message
 type MESSAGE_UPDATE Message
 type MESSAGE_DELETE Message
-type PRESENCE_UPDATE WSPres
+type PRESENCE_UPDATE map[string]interface{}
 type TYPING_START struct{
 	ChanID    string `json:"channel_id"`
 	//ChanID    int    `json:"channel_id"`  //check error
@@ -563,6 +565,16 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 					close(c.sigStop)
 				}
 				c.GuildMemberParseWS(msg.Type, parsed)
+			case "PRESENCE_UPDATE":
+				parsed, ok := msg.Data.(PRESENCE_UPDATE)
+				if ok {
+					//parse presences
+					c.wsUpdatePres(map[string]interface{}(parsed))
+				} else {
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					fmt.Println("Ignoring...")
+					
+				}
 			default:
 				if ok {
 					fmt.Printf("%s\n(needs adding)\n\n", d)
@@ -591,6 +603,117 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 	}
 	fmt.Println("all finished, exiting process")
 }
+func (c Discord) wsUpdatePres(rep map[string]interface{}) {
+	//will always have user with ID, guildID, and status
+	user, uok := rep["user"].(map[string]interface{})
+	userID, iok := user["id"].(string)
+	guildID, gok := rep["guild_id"].(string)
+	status, sok := rep["status"].(string)
+	gameEx, gmok := rep["game"]
+	if !(uok && iok && gok && sok && gmok) {
+		fmt.Println("Incorrect format of update!  ignoring update")
+		return
+	}
+	
+	//populate required fields
+	guild, err := guilds(c.cache.Guilds).FindIDIdx(guildID)
+	if err != nil {
+		fmt.Println("pres update guildID err:", err)
+		fmt.Println("ignoring whole update")
+		return
+	}
+	g := c.cache.Guilds[guild]
+	//after this point we update anyway, even if info is missing
+	pres, err := _pres(g.Presences).FindIdx(userID)
+	if err != nil {
+		fmt.Println("pres update warning:", err)
+		pres = len(g.Presences)
+		g.Presences = append(g.Presences, WSPres{})
+	}
+	p := g.Presences[pres]
+	if debug {
+		fmt.Printf("\t\told:\n\t\t%#v\n", p)
+	}
+	u := p.User
+	p.Status = status
+	
+	//optional fields include roles, game (and game.name), and the following
+	/*
+		user.verified      bool
+		user.username      string
+		user.email         string
+		user.discriminator string
+		user.id            string
+		user.avatar        *string
+	*/
+	if _, ok := rep["roles"]; ok {
+		roles := rep["roles"].([]interface{})
+		p.Roles = nil
+		for _, role := range roles {
+			if str, ok := role.(string); ok {
+				p.Roles = append(p.Roles, str)
+			}
+		}
+	}
+	
+	var newGame *Game
+	if game, ok := gameEx.(map[string]interface{}); ok {
+		if _, ok = game["name"]; ok {
+			if name, ok := game["name"].(string); ok {
+				tmp := Game{
+					Name: name,
+				}
+				newGame = &tmp
+			}
+		}
+	}
+	p.Game = newGame
+	if ver, ok := user["verified"]; ok {
+		u.Verified = ver.(bool)
+	}
+	if un, ok := user["username"]; ok {
+		u.Username = un.(string)
+	}
+	if em, ok := user["email"]; ok {
+		u.Email = em.(string)
+	}
+	if ds, ok := user["discriminator"]; ok {
+		u.Discriminator = ds.(string)
+	}
+	if av, ok := user["avatar"]; ok {
+		u.Avatar = nil
+		if tmp, ok := av.(string); ok {
+			u.Avatar = &tmp
+		}
+	}
+	p.User = u
+	g.Presences[pres] = p
+	c.cache.Guilds[guild] = g
+	if debug {
+		fmt.Printf("\t\tnew:\n\t\t%#v\n\n", c.cache.Guilds[guild].Presences[pres])
+	}
+}
+
+func (p _pres) FindIdx(ID string) (int, error) {
+	for idx, ele := range p {
+		if ele.User.ID == ID {
+			return idx, nil
+		}
+	}
+	return -1, IDNotFoundError(ID)
+}
+
+/*
+func (c guilds) FindIDIdx(ID string) (int, error) {
+	for idx, ele := range c {
+		if ele.ID == ID {
+			return idx, nil
+		}
+	}
+	return -1, IDNotFoundError(ID)
+}
+*/
+
 func (c Discord) WSInit(con *websocket.Conn, msgChan chan WSMsg) {
 	//send init on wire
 	p := Properties{
