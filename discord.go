@@ -14,8 +14,6 @@ func Login(email, pass string) (Discord, error) {
 	
 	client := Discord{ // only created once per client.
 		Client: &http.Client{ },
-		MyGuilds: []Guild{},
-		MyChans: []Channel{},
 		sigStop: make(chan int),
 		sigSafe: make(chan int),
 		sigTime: make(chan int),

@@ -17,8 +17,9 @@ type Discord struct{
 	Client    *http.Client
 	Token     string
 	LoggingIn bool
-	MyGuilds  []Guild
-	MyChans   []Channel
+	cache     READY
+	//MyGuilds  []Guild
+	//MyChans   []Channel
 	sigStop   chan int
 	sigSafe   chan int
 	sigTime   chan int

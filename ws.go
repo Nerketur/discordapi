@@ -419,7 +419,7 @@ func wsRead(con *websocket.Conn, msgRead chan WSMsg, done chan int) {
 		err := con.ReadJSON(&nextMsg)
 		if err != nil {
 			fmt.Println("wsRead:", err)
-			fmt.Println("wsRead: stooping")
+			fmt.Println("wsRead: stopping")
 			//we either need to send close, or we already sent close.
 			//either way, close readdone
 			close(done)  // this signals to wssend to start close if needed
@@ -440,8 +440,8 @@ func wsSendBeat(con *websocket.Conn, now time.Time) {
 		Op: 1,
 		Data: now.Unix(),
 	}
-	fmt.Println("sent [no] beat")
-	//con.WriteJSON(beat)
+	fmt.Println("sent beat")
+	con.WriteJSON(beat)
 	j, _ := json.Marshal(beat)
 	fmt.Printf("beat: %s\n", j)
 }
@@ -504,8 +504,6 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 			fmt.Printf("type read '%v':\n", msg.Type)
 			switch msg.Type {
 			//here, we only catch types that change internal state
-			//as of yet, the oly one to do that is "READY"
-			//  (because heartbeats)
 			//All the rest of the coding is done by the handeler of the callback.
 			case "READY":
 				parsed, ok := msg.Data.(READY)
@@ -522,10 +520,9 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 					wsHeartbeat(con, parsed.HeartbeatInterval)
 				})
 				//fill arrays
-				fmt.Println("filling guild and chan arrys...")
-				c.MyGuilds = parsed.Guilds
-				c.MyChans = parsed.PrivateChannels
-				fmt.Println("Arrays filled!")
+				fmt.Println("filling cache...")
+				c.cache = parsed
+				fmt.Println("cache filled!")
 
 			//TODO: add code differentiating between unavailable guild
 			// messages and normal messages
@@ -544,16 +541,26 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 					tmp, _ := msg.Data.(GUILD_DELETE)
 					parsed = Guild(tmp)
 				default:
-					fmt.Printf("Expected GUILD_*, got %T\n", msg.Data)
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					close(c.sigStop)
 				}
 				c.GuildParseWS(msg.Type, parsed)
 			case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE","GUILD_MEMBER_REMOVE":
 				//parse guild member stuff
-				parsed, ok := msg.Data.(Member)
-				if !ok {
-					fmt.Printf("Expected Member, got %T\n", msg.Data)
-					break
+				var parsed Member
+				switch msg.Data.(type) {
+				case GUILD_MEMBER_ADD:
+					tmp, _ := msg.Data.(GUILD_MEMBER_ADD)
+					parsed = Member(tmp)
+				case GUILD_MEMBER_UPDATE:
+					tmp, _ := msg.Data.(GUILD_MEMBER_UPDATE)
+					parsed = Member(tmp)
+				case GUILD_MEMBER_REMOVE:
+					tmp, _ := msg.Data.(GUILD_MEMBER_REMOVE)
+					parsed = Member(tmp)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
 				}
 				c.GuildMemberParseWS(msg.Type, parsed)
 			default:
