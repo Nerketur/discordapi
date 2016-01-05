@@ -245,37 +245,38 @@ type READY struct{ // op from server (0)
 	Guilds            []Guild    `json:"guilds"`
 }
 /*
-+ means parsed
+* means unparsed
++ means implemented with cache
 - means eventual new event
-    +CHANNEL_CREATE
-    +CHANNEL_CREATE (private)
-    +CHANNEL_DELETE
-    +CHANNEL_DELETE (private)
-    +CHANNEL_UPDATE
+    CHANNEL_CREATE
+    CHANNEL_CREATE (private)
+    CHANNEL_DELETE
+    CHANNEL_DELETE (private)
+    CHANNEL_UPDATE
     +GUILD_CREATE
     -GUILD_CREATE (unavailable)
     +GUILD_DELETE
     -GUILD_DELETE (unavailable)
     +GUILD_UPDATE
-    +GUILD_BAN_ADD
-    +GUILD_BAN_REMOVE
+    GUILD_BAN_ADD
+    GUILD_BAN_REMOVE
     +GUILD_MEMBER_ADD
     +GUILD_MEMBER_REMOVE
     +GUILD_MEMBER_UPDATE
-    +GUILD_ROLE_CREATE
-    +GUILD_ROLE_DELETE
-    +GUILD_ROLE_UPDATE
-    +GUILD_INTEGRATIONS_UPDATE
-    +MESSAGE_CREATE
-    +MESSAGE_DELETE
-    +MESSAGE_UPDATE
-    +MESSAGE_UPDATE (embeds only)
+    GUILD_ROLE_CREATE
+    GUILD_ROLE_DELETE
+    GUILD_ROLE_UPDATE
+    GUILD_INTEGRATIONS_UPDATE
+    MESSAGE_CREATE
+    MESSAGE_DELETE
+    MESSAGE_UPDATE
+    MESSAGE_UPDATE (embeds only)
     +PRESENCE_UPDATE
-    +READY
-    +TYPING_START
-    +USER_SETTINGS_UPDATE
-    +VOICE_STATE_UPDATE
-	+MESSAGE_ACK
+    READY
+    TYPING_START
+    USER_SETTINGS_UPDATE
+    VOICE_STATE_UPDATE
+	MESSAGE_ACK
     OP 7
 
 */
@@ -467,11 +468,11 @@ func wsHeartbeat(con *websocket.Conn, msInterval uint64) {
 	}
 }
 
-type Callback func(event string, data interface{})
+type Callback func(c Discord, event string, data interface{})
 
-func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB *Callback) {
+func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB *Callback) {
 	if CB == nil {
-		def := Callback(func(string, interface{}) {}) //the do nothing callback
+		def := Callback(func(Discord, string, interface{}) {}) //the do nothing callback
 		CB = &def
 	}
 
@@ -523,7 +524,10 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 				})
 				//fill arrays
 				fmt.Println("filling cache...")
-				c.cache = parsed
+				c.cache = &parsed
+				if len(c.cache.Guilds) == 0 {
+					panic("cache should not be empty! -- just after assign --")
+				}
 				fmt.Println("cache filled!")
 
 			//TODO: add code differentiating between unavailable guild
@@ -547,6 +551,24 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 					close(c.sigStop)
 				}
 				c.GuildParseWS(msg.Type, parsed)
+			case "CHANNEL_CREATE","CHANNEL_UPDATE","CHANNEL_DELETE":
+				//parse guild stuff
+				var parsed Channel
+				switch msg.Data.(type) {
+				case CHANNEL_CREATE:
+					tmp, _ := msg.Data.(CHANNEL_CREATE)
+					parsed = Channel(tmp)
+				case CHANNEL_UPDATE:
+					tmp, _ := msg.Data.(CHANNEL_UPDATE)
+					parsed = Channel(tmp)
+				case CHANNEL_DELETE:
+					tmp, _ := msg.Data.(CHANNEL_DELETE)
+					parsed = Channel(tmp)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
+				}
+				c.ChannelParseWS(msg.Type, parsed)
 			case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE","GUILD_MEMBER_REMOVE":
 				//parse guild member stuff
 				var parsed Member
@@ -576,6 +598,13 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 					
 				}
 			default:
+				if debug {
+					if c.cache == nil {
+						panic("cache should not be nil! -- default case --")
+					} else if len(c.cache.Guilds) == 0 {
+						panic("guild cache should not be empty! -- default case --")
+					}
+				}
 				if ok {
 					fmt.Printf("%s\n(needs adding)\n\n", d)
 				} else {
@@ -584,7 +613,7 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB 
 			}
 			
 			call := *CB
-			call(msg.Type, msg.Data)
+			call(*c, msg.Type, msg.Data)
 		default:
 			fmt.Printf("unexpected op '%v':\n%#v\n\n", msg.Op, msg.Data)
 		}

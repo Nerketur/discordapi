@@ -17,12 +17,16 @@ type Discord struct{
 	Client    *http.Client
 	Token     string
 	LoggingIn bool
-	cache     READY
+	cache     *READY
 	//MyGuilds  []Guild
 	//MyChans   []Channel
 	sigStop   chan int
 	sigSafe   chan int
 	sigTime   chan int
+}
+
+func (c Discord) Cache() (*READY) {
+	return c.cache
 }
 
 /////////////////////////////
@@ -91,8 +95,7 @@ type Message struct{
 	Content     string       `json:"content"`
 	ChanID      string       `json:"channel_id"`
 	//including json tag magic to have it look for both, and ignore whichever one doesn't exist.
-	MentionsNum []string     `json:"mentions,omitempty"` // Userids (usually only sent)
-	MentionsUse []User       `json:"mentions,omitempty"` // Users (usually only receved)
+	Mentions    []User       `json:"mentions,omitempty"` // Users (only receved)
 }
 	type Attachment struct{
 		URL      string `json:"url"`      //URL of downloadable object

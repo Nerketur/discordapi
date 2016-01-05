@@ -38,6 +38,8 @@ func (c guilds) FindIDIdx(ID string) (int, error) {
 	return -1, IDNotFoundError(ID)
 }
 
+
+
 func (c *Discord) AddGuild(g Guild) {
 	c.cache.Guilds = append(c.cache.Guilds, g)
 }
@@ -49,7 +51,7 @@ func (c *Discord) RemGuildIdx(idx int) {
 	}
 }
 
-func (c Discord) GuildParseWS(event string, g Guild) {
+func (c *Discord) GuildParseWS(event string, g Guild) {
 	if g.Unavailable != nil {
 		return // ignore these messages for now
 	}
@@ -65,14 +67,14 @@ func (c Discord) GuildParseWS(event string, g Guild) {
 	}
 }
 
-//depricated.  may be removed because only in WS
-//alternatively, may use cache instead
+//now use cache instead
 func (c Discord) GuildMembers(guildID string) (resp []Member, err error) {
-	resp = make([]Member, 0)
-	err = c.Get(fmt.Sprintf(GuildMembersURL, guildID), &resp)
+	var idx int // to prevent shadowing
+	idx, err = guilds(c.cache.Guilds).FindIDIdx(guildID)
 	if err != nil {
 		return
 	}
+	resp = c.cache.Guilds[idx].Members
 	
 	fmt.Println("Got members successfully!")
 	return
@@ -107,6 +109,14 @@ func (c Discord) GuildChanCreate(guildID, name, kind string) (resp Channel, err 
 	
 	fmt.Println("created channel!")
 	return
+}
+
+func (c Discord) Guilds() []Guild {
+	if c.cache == nil {
+		fmt.Println("\t\tguilds empty!")
+		return make([]Guild, 0)
+	}
+	return c.cache.Guilds
 }
 
 func (c Discord) GetMyGuilds() (resp []Guild, err error) {
@@ -233,8 +243,9 @@ func (g *Guild) RemMember(m Member) {
 	g.RemMemberIdx(idx)
 }
 
-func (c Discord) GuildMemberParseWS(event string, m Member) {
-	g, err := guilds(c.cache.Guilds).FindID(m.GuildID)
+func (c *Discord) GuildMemberParseWS(event string, m Member) {
+	idx, err := guilds(c.cache.Guilds).FindIDIdx(m.GuildID)
+	g := c.cache.Guilds[idx]
 	if err != nil {
 		fmt.Println("cache error:", err)
 		return
@@ -245,6 +256,7 @@ func (c Discord) GuildMemberParseWS(event string, m Member) {
 	if event != "GUILD_MEMBER_REMOVE" {
 		g.AddMember(m)
 	}
+	c.cache.Guilds[idx] = g
 }
 
 

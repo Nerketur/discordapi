@@ -107,3 +107,10 @@ func (c Discord) DeletePrivateChan(userID string) error { //API also returns del
 	fmt.Println("removed private channel (from list) successfully!")
 	return nil
 }
+
+func (p WSPres) Playing() *string {
+	if p.Game == nil {
+		return nil
+	}
+	return &p.Game.Name
+}
