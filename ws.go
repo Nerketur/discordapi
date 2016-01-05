@@ -248,11 +248,12 @@ type READY struct{ // op from server (0)
 * means unparsed
 + means implemented with cache
 - means eventual new event
-    CHANNEL_CREATE
-    CHANNEL_CREATE (private)
-    CHANNEL_DELETE
-    CHANNEL_DELETE (private)
-    CHANNEL_UPDATE
+? means possible new event
+    +CHANNEL_CREATE
+    ?CHANNEL_CREATE (private)
+    +CHANNEL_DELETE
+    ?CHANNEL_DELETE (private)
+    +CHANNEL_UPDATE
     +GUILD_CREATE
     -GUILD_CREATE (unavailable)
     +GUILD_DELETE
@@ -568,7 +569,11 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					close(c.sigStop)
 				}
-				c.ChannelParseWS(msg.Type, parsed)
+				if parsed.Private {
+					c.PrivateChannelParseWS(msg.Type, parsed)
+				} else {
+					c.ChannelParseWS(msg.Type, parsed)
+				}
 			case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE","GUILD_MEMBER_REMOVE":
 				//parse guild member stuff
 				var parsed Member

@@ -114,3 +114,17 @@ func (p WSPres) Playing() *string {
 	}
 	return &p.Game.Name
 }
+
+func (c *Discord) PrivateChannelParseWS(event string, ch Channel) {
+	chans := _chan(c.cache.PrivateChannels)
+	cIdx, err := chans.FindIDIdx(ch.ID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if event != "CHANNEL_CREATE" && err == nil {
+		chans.RemChanIdx(cIdx)
+	}
+	if event != "CHANNEL_DELETE" {
+		chans.AddChan(ch)
+	}
+}

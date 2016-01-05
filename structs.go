@@ -1,16 +1,16 @@
 package discord
 
 import (
-	"net/http"
-	"time"
-	"encoding/json"
 	"fmt"
+	"time"
+	"net/http"
+	"encoding/json"
 )
 
 type Creds struct{
-	Email    []string `json:"email"`
-	Pass     []string `json:"password"`
-	Token    string `json:"token,omitempty"`
+	Email []string `json:"email"`
+	Pass  []string `json:"password"`
+	Token string   `json:"token,omitempty"`
 }
 
 type Discord struct{
@@ -37,7 +37,7 @@ func (c Discord) Cache() (*READY) {
 //everything annoying to read, so this stays seperate for now.
 type MessageSend struct{ 
 	Content  string   `json:"content"`
-	Mentions []string `json:"mentions"`
+	Mentions []string `json:"mentions,omitempty"` //deprecatd
 	Nonce    int64    `json:"nonce,string"`
 	Tts      bool     `json:"tts"`
 }
@@ -133,10 +133,10 @@ type Message struct{
 		}
 
 type PrivateChannel struct{ // not curently used
-	LastMsgID   *string    `json:"last_message_id"` // can be null
-	Recipient   *User      `json:"recipient,omitempty"` //only exists if private
-	ID          string     `json:"id"`
-	Private     bool       `json:"is_private"`
+	LastMsgID *string `json:"last_message_id"` // can be null
+	Recipient *User   `json:"recipient,omitempty"` //only exists if private
+	ID        string  `json:"id"`
+	Private   bool    `json:"is_private"`
 }
 type Channel struct{
 	GuildID     string     `json:"guild_id,omitempty"`
