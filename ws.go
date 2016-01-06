@@ -247,7 +247,9 @@ type READY struct{ // op from server (0)
 /*
 * means unparsed
 + means implemented with cache
+x means not planning to implement
 - means eventual new event
+= means not fully impemented
 ? means possible new event
     +CHANNEL_CREATE
     ?CHANNEL_CREATE (private)
@@ -259,28 +261,49 @@ type READY struct{ // op from server (0)
     +GUILD_DELETE
     -GUILD_DELETE (unavailable)
     +GUILD_UPDATE
-    GUILD_BAN_ADD
-    GUILD_BAN_REMOVE
+    =GUILD_BAN_ADD
+    =GUILD_BAN_REMOVE
     +GUILD_MEMBER_ADD
     +GUILD_MEMBER_REMOVE
     +GUILD_MEMBER_UPDATE
-    GUILD_ROLE_CREATE
-    GUILD_ROLE_DELETE
-    GUILD_ROLE_UPDATE
+    +GUILD_ROLE_CREATE
+    +GUILD_ROLE_DELETE
+    +GUILD_ROLE_UPDATE
     GUILD_INTEGRATIONS_UPDATE
     MESSAGE_CREATE
     MESSAGE_DELETE
     MESSAGE_UPDATE
     MESSAGE_UPDATE (embeds only)
     +PRESENCE_UPDATE
-    READY
-    TYPING_START
-    USER_SETTINGS_UPDATE
+    +READY
+    xTYPING_START //pointless for bots?
+    USER_SETTINGS_UPDATE //unsure if this is really needed
     VOICE_STATE_UPDATE
-	MESSAGE_ACK
+	xMESSAGE_ACK //unimportant,clients only
     OP 7
 
 */
+type WSBan struct{
+	GuildID string `json:"guild_id"`
+	User    User   `json:"user"`
+}
+type WSRole interface{
+	GetGuildID() string
+	GetRoleID() string
+	GetRole() Role
+}
+func (m GUILD_ROLE_CREATE) GetGuildID() string {return m.GuildID}
+func (m GUILD_ROLE_UPDATE) GetGuildID() string {return m.GuildID}
+func (m GUILD_ROLE_DELETE) GetGuildID() string {return m.GuildID}
+
+func (m GUILD_ROLE_CREATE) GetRoleID() string {return m.Role.ID}
+func (m GUILD_ROLE_UPDATE) GetRoleID() string {return m.Role.ID}
+func (m GUILD_ROLE_DELETE) GetRoleID() string {return m.RoleID}
+
+func (m GUILD_ROLE_CREATE) GetRole() Role {return m.Role}
+func (m GUILD_ROLE_UPDATE) GetRole() Role {return m.Role}
+func (m GUILD_ROLE_DELETE) GetRole() Role {return Role{ID: m.RoleID,}}
+
 type MESSAGE_ACK struct{
 	MessageID string `json:"message_id"`
 	ChannelID string `json:"channel_id"`
@@ -293,14 +316,8 @@ type GUILD_DELETE Guild
 type GUILD_MEMBER_ADD Member
 type GUILD_MEMBER_UPDATE Member
 type GUILD_MEMBER_REMOVE Member
-type GUILD_BAN_ADD struct{
-	GuildID string `json:"guild_id"`
-	User    User   `json:"user"`
-}
-type GUILD_BAN_REMOVE struct{
-	GuildID string `json:"guild_id"`
-	User    User   `json:"user"`
-}
+type GUILD_BAN_ADD WSBan
+type GUILD_BAN_REMOVE WSBan
 type GUILD_ROLE_CREATE struct{
 	GuildID string `json:"guild_id"`
 	Role    Role   `json:"role"`
@@ -592,6 +609,34 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 					close(c.sigStop)
 				}
 				c.GuildMemberParseWS(msg.Type, parsed)
+			case "GUILD_BAN_ADD", "GUILD_BAN_REMOVE":
+				var parsed WSBan
+				switch msg.Data.(type) {
+				case GUILD_BAN_ADD:
+					tmp, _ := msg.Data.(GUILD_BAN_ADD)
+					parsed = WSBan(tmp)
+				case GUILD_BAN_REMOVE:
+					tmp, _ := msg.Data.(GUILD_BAN_REMOVE)
+					parsed = WSBan(tmp)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
+				}
+				c.GuildBanParseWS(msg.Type, parsed)
+			case "GUILD_ROLE_CREATE", "GUILD_ROLE_UPDATE", "GUILD_ROLE_DELETE":
+				var parsed WSRole
+				switch msg.Data.(type) {
+				case GUILD_ROLE_CREATE:
+					parsed, _ = msg.Data.(GUILD_ROLE_CREATE)
+				case GUILD_ROLE_UPDATE:
+					parsed, _ = msg.Data.(GUILD_ROLE_UPDATE)
+				case GUILD_ROLE_DELETE:
+					parsed, _ = msg.Data.(GUILD_ROLE_DELETE)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
+				}
+				c.GuildRoleParseWS(msg.Type, parsed)
 			case "PRESENCE_UPDATE":
 				parsed, ok := msg.Data.(PRESENCE_UPDATE)
 				if ok {
@@ -600,7 +645,6 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				} else {
 					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					fmt.Println("Ignoring...")
-					
 				}
 			default:
 				if debug {
