@@ -125,7 +125,7 @@ func (c *Discord) PrivateChanDelete(chanID string) (err error) {
 	if err != nil {
 		return
 	}
-	chans.RemChanIdx(idx)
+	//chans.RemChanIdx(idx) //only ifno WS
 	return c.ChanDelete(chanID)
 }
 //{"max_age":1800,"max_uses":0,"temporary":false,"xkcdpass":true}
