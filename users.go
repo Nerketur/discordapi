@@ -117,7 +117,7 @@ func (p WSPres) Playing() *string {
 
 func (c *Discord) PrivateChannelParseWS(event string, ch Channel) {
 	chans := _chan(c.cache.PrivateChannels)
-	cIdx, err := chans.FindIDIdx(ch.ID)
+	cIdx, err := chans.FindIdxID(ch.ID)
 	if err != nil {
 		fmt.Println(err)
 	}

@@ -28,7 +28,7 @@ func (c _chan) Find(name string) (ch Channel, err error) {
 	return
 }
 func (c _chan) FindID(ID string) (ch Channel, err error) {
-	idx, err := c.FindIDIdx(ID)
+	idx, err := c.FindIdxID(ID)
 	if err == nil {
 		ch = c[idx]
 	}
@@ -42,7 +42,7 @@ func (c _chan) FindNameIdx(name string) (int, error) {
 	}
 	return -1, NameNotFoundError("name: " + name)
 }
-func (c _chan) FindIDIdx(ID string) (int, error) {
+func (c _chan) FindIdxID(ID string) (int, error) {
 	for idx, ele := range c {
 		if ele.ID == ID {
 			return idx, nil
@@ -121,7 +121,7 @@ func (c Discord) ChanDelete(chanID string) (err error) {
 }
 func (c *Discord) PrivateChanDelete(chanID string) (err error) {
 	chans := _chan(c.cache.PrivateChannels)
-	idx, err := chans.FindIDIdx(chanID)
+	idx, err := chans.FindIdxID(chanID)
 	if err != nil {
 		return
 	}
@@ -193,12 +193,12 @@ func (c *Discord) RemChanIdx(gIdx, idx int) {
 
 
 func (c *Discord) ChannelParseWS(event string, ch Channel) {
-	gIdx, err := guilds(c.cache.Guilds).FindIDIdx(ch.GuildID)
+	gIdx, err := guilds(c.cache.Guilds).FindIdxID(ch.GuildID)
 	if err != nil {
 		fmt.Println("chan parse err:", err)
 		return
 	}
-	cIdx, err := _chan(c.cache.Guilds[gIdx].Channels).FindIDIdx(ch.ID)
+	cIdx, err := _chan(c.cache.Guilds[gIdx].Channels).FindIdxID(ch.ID)
 	if err != nil {
 		fmt.Println(err)
 	}

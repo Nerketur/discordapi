@@ -29,7 +29,7 @@ func (c guilds) FindID(ID string) (Guild, error) {
 	}
 	return Guild{}, IDNotFoundError(ID)
 }
-func (c guilds) FindIDIdx(ID string) (int, error) {
+func (c guilds) FindIdxID(ID string) (int, error) {
 	for idx, ele := range c {
 		if ele.ID == ID {
 			return idx, nil
@@ -55,7 +55,7 @@ func (c *Discord) GuildParseWS(event string, g Guild) {
 	if g.Unavailable != nil {
 		return // ignore these messages for now
 	}
-	oldIdx, err := guilds(c.cache.Guilds).FindIDIdx(g.ID)
+	oldIdx, err := guilds(c.cache.Guilds).FindIdxID(g.ID)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -70,7 +70,7 @@ func (c *Discord) GuildParseWS(event string, g Guild) {
 //now use cache instead
 func (c Discord) GuildMembers(guildID string) (resp []Member, err error) {
 	var idx int // to prevent shadowing
-	idx, err = guilds(c.cache.Guilds).FindIDIdx(guildID)
+	idx, err = guilds(c.cache.Guilds).FindIdxID(guildID)
 	if err != nil {
 		return
 	}
@@ -244,7 +244,7 @@ func (g *Guild) RemMember(m Member) {
 }
 
 func (c *Discord) GuildMemberParseWS(event string, m Member) {
-	idx, err := guilds(c.cache.Guilds).FindIDIdx(m.GuildID)
+	idx, err := guilds(c.cache.Guilds).FindIdxID(m.GuildID)
 	g := c.cache.Guilds[idx]
 	if err != nil {
 		fmt.Println("cache error:", err)
@@ -398,7 +398,7 @@ func (c *Discord) GuildBanParseWS(event string, b WSBan) {
 }
 
 type roles []Role
-func (r roles) FindIDIdx(ID string) (int, error) {
+func (r roles) FindIdxID(ID string) (int, error) {
 	for idx, ele := range r {
 		if ele.ID == ID {
 			return idx, nil
@@ -423,13 +423,13 @@ func (c *Discord) RemGuildRoleIdx(gIdx, idx int) {
 func (c *Discord) GuildRoleParseWS(event string, r WSRole) {
 	//update guild roles
 	//delete only gets role ID
-	gIdx, err := guilds(c.cache.Guilds).FindIDIdx(r.GetGuildID())
+	gIdx, err := guilds(c.cache.Guilds).FindIdxID(r.GetGuildID())
 	if err != nil {
 		fmt.Println("invalid guild:", err)
 		return
 	}
 	g := c.cache.Guilds[gIdx]
-	rIdx, err := roles(g.Roles).FindIDIdx(r.GetRoleID())
+	rIdx, err := roles(g.Roles).FindIdxID(r.GetRoleID())
 	if err != nil {
 		fmt.Println("invalid guild:", err)
 		return

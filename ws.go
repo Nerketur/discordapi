@@ -694,7 +694,7 @@ func (c Discord) wsUpdatePres(rep map[string]interface{}) {
 	}
 	
 	//populate required fields
-	guild, err := guilds(c.cache.Guilds).FindIDIdx(guildID)
+	guild, err := guilds(c.cache.Guilds).FindIdxID(guildID)
 	if err != nil {
 		fmt.Println("pres update guildID err:", err)
 		fmt.Println("ignoring whole update")
@@ -782,7 +782,7 @@ func (p _pres) FindIdx(ID string) (int, error) {
 }
 
 /*
-func (c guilds) FindIDIdx(ID string) (int, error) {
+func (c guilds) FindIdxID(ID string) (int, error) {
 	for idx, ele := range c {
 		if ele.ID == ID {
 			return idx, nil
