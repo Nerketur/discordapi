@@ -11,6 +11,8 @@ Later on, I will have better websocket support, but if you want a good one right
 Version system will be sporadic until 1.0, safe to ignore, other than alpha means preliminary, beta means set on paper, and stable means more or less set in stone.
 
 ##Usage
+
+Please note that *as-is*, this example will only work if run with *your* account info.  To get it to work with others, follow the comments instructions.
 ```go
 package main
 
@@ -26,7 +28,9 @@ func parseCmd(c discord.Discord, data discord.MESSAGE_CREATE) {
 	if !strings.HasPrefix(data.Content, cmdPrefix) {
 		return
 	}
-	if data.Author.ID != c.Me.ID {
+	if data.Author.ID != c.Me.ID {  //comment out before uncommenting below
+	//if data.Author.Name != "Name" { //use this instead for checking names
+	//if data.Author.ID != "UserID" { //use this instead to check for a User ID (string of numbers)
 		//c.SendTextMsg("Sorry, you can't use this command", data.ChanID)
 		return
 	}
