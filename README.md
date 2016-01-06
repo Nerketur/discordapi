@@ -44,6 +44,15 @@ func parseCmd(c discord.Discord, data discord.MESSAGE_CREATE) {
 	}
 }
 
+func callback(cl discord.Discord, event string, data interface{}) {
+	fmt.Println("\tuser callback called:", event)
+	if mc, ok := data.(discord.MESSAGE_CREATE); ok {
+		parseCmd(cl, mc)
+	}
+	fmt.Println()
+}
+
+
 func main() {
 	client, err := discord.Login("temp1@example.com", "12345")
 	if err != nil {
@@ -54,14 +63,8 @@ func main() {
 		fmt.Println("Empty client!  Check your network connection.")
 		return
 	}
-	call := discord.Callback(func(event string, data interface{}) {
-		fmt.Println("\tuser callback called:", event)
-		if mc, ok := data.(discord.MESSAGE_CREATE); ok {
-			parseCmd(client, mc)
-		}
-		fmt.Println()
-	})
 	fmt.Println("Attempting websocket connection...")
+	call := discord.Callback(callback)
 	err = client.WSConnect(&call) // required if websockets is desired
 	if err != nil {
 		fmt.Println("websocket error:", err)
