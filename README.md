@@ -26,7 +26,7 @@ func parseCmd(c discord.Discord, data discord.MESSAGE_CREATE) {
 	if !strings.HasPrefix(data.Content, cmdPrefix) {
 		return
 	}
-	if data.Author.Username != "Nerketur" {
+	if data.Author.ID != c.Me.ID {
 		//c.SendTextMsg("Sorry, you can't use this command", data.ChanID)
 		return
 	}

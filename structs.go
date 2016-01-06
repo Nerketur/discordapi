@@ -18,6 +18,7 @@ type Discord struct{
 	Token     string
 	LoggingIn bool
 	cache     *READY
+	Me        *User
 	//MyGuilds  []Guild
 	//MyChans   []Channel
 	sigStop   chan int
