@@ -1,7 +1,7 @@
 # discordapi
 A GoLang API wrapper for the Discord REST API (unofficial) and preliminary websockets
 
-v0.7.1 alpha
+v0.8.0 alpha
 
 ##About
 This is a simple low-level REST API Wrapper for Discord.  I am not affiliated with or endorsed by Discrd at all, this is meant as a way to learn Go better as a language.  It may contain errors, bugs, and any other such oddities, but it seems to work for me :)
