@@ -7,10 +7,10 @@ import (
 type _privchan []Channel
 
 func (c Discord) PrivateChan(name string) (Channel, error) {
-	return _privchan(c.MyChans).Find(name)
+	return _privchan(c.cache.PrivateChannels).Find(name)
 }
 func (c Discord) PrivateChanFromID(ID string) (Channel, error) {
-	return _privchan(c.MyChans).FindID(ID)
+	return _privchan(c.cache.PrivateChannels).FindID(ID)
 }
 
 func (c Discord) PrivateChanID(name string) (string, error) {
@@ -59,11 +59,35 @@ func (c *Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
 	if err != nil {
 		return
 	}
-	c.MyChans = append(c.MyChans, resp)
-	fmt.Printf("%#v\n", c.MyChans)
+	
+	pcs := _chan(c.cache.PrivateChannels)
+	//pcs.AddChan(resp) //only needed if no websocket
+	fmt.Printf("%#v\n", pcs)
 	fmt.Println("created (opened) private channel successfully!")
 	return
 }
+
+func (c *_chan) AddChan(ch Channel) {
+	*c = append(*c, ch)
+}
+func (ch *_chan) RemChanIdx(idx int) {
+	c := *ch
+	if idx == len(c)-1 {
+		c = c[:idx]
+	} else {
+		c = append(c[:idx], c[idx+1:]...)
+	}
+	*ch = c
+}
+/* func (c *Discord) RemPrivChanIdx(idx int) {
+	if idx == 0 {
+		c.MyChans = c.MyChans[1:]
+	} else if idx == len(c.MyChans)-1 {
+		c.MyChans = c.MyChans[:idx-1]
+	} else {
+		c.MyChans = append(c.MyChans[:idx-1], c.MyChans[idx+1:]...)
+	}
+} */
 
 /*
  * Note that this does not remove message history; only removes the channel from
@@ -77,9 +101,30 @@ func (c Discord) DeletePrivateChan(userID string) error { //API also returns del
 	if err != nil {
 		return err
 	}
-	if err = c.PrivateChanDelete(channel.ID); err != nil { //..but we ignore it.
+	if err = c.PrivateChanDelete(channel.ID); err != nil {
 		return err
 	}
 	fmt.Println("removed private channel (from list) successfully!")
 	return nil
+}
+
+func (p WSPres) Playing() *string {
+	if p.Game == nil {
+		return nil
+	}
+	return &p.Game.Name
+}
+
+func (c *Discord) PrivateChannelParseWS(event string, ch Channel) {
+	chans := _chan(c.cache.PrivateChannels)
+	cIdx, err := chans.FindIdxID(ch.ID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if event != "CHANNEL_CREATE" && err == nil {
+		chans.RemChanIdx(cIdx)
+	}
+	if event != "CHANNEL_DELETE" {
+		chans.AddChan(ch)
+	}
 }

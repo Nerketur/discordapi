@@ -1,27 +1,33 @@
 package discord
 
 import (
-	"net/http"
-	"time"
-	"encoding/json"
 	"fmt"
+	"time"
+	"net/http"
+	"encoding/json"
 )
 
 type Creds struct{
-	Email    []string `json:"email"`
-	Pass     []string `json:"password"`
-	Token    string `json:"token,omitempty"`
+	Email []string `json:"email"`
+	Pass  []string `json:"password"`
+	Token string   `json:"token,omitempty"`
 }
 
 type Discord struct{
 	Client    *http.Client
 	Token     string
 	LoggingIn bool
-	MyGuilds  []Guild
-	MyChans   []Channel
+	cache     *READY
+	Me        *User
+	//MyGuilds  []Guild
+	//MyChans   []Channel
 	sigStop   chan int
 	sigSafe   chan int
 	sigTime   chan int
+}
+
+func (c Discord) Cache() (*READY) {
+	return c.cache
 }
 
 /////////////////////////////
@@ -32,17 +38,18 @@ type Discord struct{
 //everything annoying to read, so this stays seperate for now.
 type MessageSend struct{ 
 	Content  string   `json:"content"`
-	Mentions []string `json:"mentions"`
+	Mentions []string `json:"mentions,omitempty"` //deprecatd
 	Nonce    int64    `json:"nonce,string"`
 	Tts      bool     `json:"tts"`
 }
 
 type Member struct{
-	Joined time.Time `json:"joined_at"`
-	Deaf   bool      `json:"deaf"`
-	User   User      `json:"user"`
-	Roles  []string  `json:"roles"`
-	Mute   bool      `json:"mute"`
+	GuildID string    `json:"guild_id,omitempty"`
+	Joined  time.Time `json:"joined_at"`
+	Deaf    bool      `json:"deaf"`
+	User    User      `json:"user"`
+	Roles   []string  `json:"roles"`
+	Mute    bool      `json:"mute"`
 }
 	type User struct{
 		Verified      bool    `json:"verified,omitempty"` //only for WS
@@ -75,7 +82,7 @@ func (u *User) UnmarshalJSON(raw []byte) (err error) {
 	*u = User(u1)
 	return
 }
-	
+
 type Message struct{
 	Nonce       int64        `json:"nonce,string,omitempty"` //only used when sending messages
 	Attachments []Attachment `json:"attachments"`
@@ -89,8 +96,7 @@ type Message struct{
 	Content     string       `json:"content"`
 	ChanID      string       `json:"channel_id"`
 	//including json tag magic to have it look for both, and ignore whichever one doesn't exist.
-	MentionsNum []string     `json:"mentions,omitempty"` // Userids (usually only sent)
-	MentionsUse []User       `json:"mentions,omitempty"` // Users (usually only receved)
+	Mentions    []User       `json:"mentions,omitempty"` // Users (only receved)
 }
 	type Attachment struct{
 		URL      string `json:"url"`      //URL of downloadable object
@@ -101,31 +107,37 @@ type Message struct{
 		Width    int    `json:"width,omitempty"`    //image width
 		Height   int    `json:"height,omitempty"`   //image height
 	}
-		type Embed struct{
-			Desc     string    `json:"description"`
-			Author   Entity    `json:"author"`
-			URL      string    `json:"url"`
-			Title    string    `json:"title"`
-			Provider Entity    `json:"provider"`
-			Type     string    `json:"type"`
-			Thumb    Thumbnail `json:"thumbnail"`
+	type Embed struct{
+		Desc     *string   `json:"description"`
+		Author   *Entity    `json:"author,omitempty"`
+		URL      string    `json:"url"`
+		Title    *string    `json:"title"`
+		Provider *Entity   `json:"provider,omitempty"`
+		Type     string    `json:"type"`
+		Thumb    *Thumbnail `json:"thumbnail,omitempty"`
+		Video    *Video     `json:"video,omitempty"`
+	}
+		type Entity struct{
+			URL  *string `json:"url"` //can be null
+			Name string  `json:"name"`
+		}                
+		type Thumbnail struct{
+			URL    string `json:"url"`
+			Width  int    `json:"width"`
+			Proxy  string `json:"proxy_url"`
+			Height int    `json:"height"`
 		}
-			type Entity struct{
-				URL  *string `json:"url"` //can be null
-				Name string  `json:"name"`
-			}                
-			type Thumbnail struct{
-				URL    string `json:"url"`
-				Width  int    `json:"width"`
-				Proxy  string `json:"proxy_url"`
-				Height int    `json:"height"`
-			}
+		type Video struct{
+			URL    string `json:"url"`
+			Width  int    `json:"width"`
+			Height int    `json:"height"`
+		}
 
 type PrivateChannel struct{ // not curently used
-	LastMsgID   *string    `json:"last_message_id"` // can be null
-	Recipient   *User      `json:"recipient,omitempty"` //only exists if private
-	ID          string     `json:"id"`
-	Private     bool       `json:"is_private"`
+	LastMsgID *string `json:"last_message_id"` // can be null
+	Recipient *User   `json:"recipient,omitempty"` //only exists if private
+	ID        string  `json:"id"`
+	Private   bool    `json:"is_private"`
 }
 type Channel struct{
 	GuildID     string     `json:"guild_id,omitempty"`
@@ -147,20 +159,21 @@ type Channel struct{
 	}
 
 type Guild struct{
-	VoiceStates  []WSVoiceStates `json:"voice_states"` //only READY
-	Roles        []Role          `json:"roles"`
-	Region       string          `json:"region"`
-	Presences    []WSPres        `json:"presences"` // only READY
-	OwnerID      string          `json:"owner_id"`
-	Name         string          `json:"name"`
-	//Large        bool            `json:"large"` //only READY
-	Members      []Member        `json:"members"` //only READY
-	JoinedAt     time.Time       `json:"joined_at"`
-	ID           string          `json:"id"`
-	Icon         *string         `json:"icon"`
-	Channels     []Channel       `json:"channels"` // only READY
-	AfkTimeout   uint64          `json:"afk_timeout"`
-	AfkChannelID *string         `json:"afk_channel_id"`
+	VoiceStates  []WSVoiceState `json:"voice_states"` //only READY
+	Roles        []Role         `json:"roles"`
+	Region       string         `json:"region"`
+	Presences    []WSPres       `json:"presences"` // only READY
+	OwnerID      string         `json:"owner_id"`
+	Name         string         `json:"name"`
+	//Large        bool           `json:"large"` //only READY
+	Members      []Member       `json:"members"` //only READY
+	JoinedAt     time.Time      `json:"joined_at"`
+	ID           string         `json:"id"`
+	Icon         *string        `json:"icon"`
+	Channels     []Channel      `json:"channels"` // only READY
+	AfkTimeout   uint64         `json:"afk_timeout"`
+	AfkChannelID *string        `json:"afk_channel_id"`
+	Unavailable  *bool          `json:"unavailable,omitempty"` // if present, state changed
 }
 	type Role struct{
 		Managed     bool   `json:"managed,omitempty"`
@@ -211,15 +224,15 @@ type Ice struct {
 		Cred     string `json:"credential,omitempty"`
 	}
 type Setting struct{
-	RenderEmbeds      bool     `json:"render_embeds"`
-	InlineEmbedMedia  bool     `json:"inline_embed_media"`
-	EnableTTSCmd      bool     `json:"enable_tts_command"`
-	MsgDispCompact    bool     `json:"message_display_compact"`
-	Locale            string   `json:"locale"`
-	ShowCurrentGame   bool     `json:"show_current_game"`
-	Theme             string   `json:"theme"`
-	MutedChanIDs      []string `json:"muted_channels"`
-	InlineAttachMedia bool     `json:"inline_attachment_media"`
+	RenderEmbeds      *bool    `json:"render_embeds,omitempty"`
+	InlineEmbedMedia  *bool    `json:"inline_embed_media,omitempty"`
+	EnableTTSCmd      *bool    `json:"enable_tts_command,omitempty"`
+	MsgDispCompact    *bool    `json:"message_display_compact,omitempty"`
+	Locale            string   `json:"locale,omitempty"`
+	ShowCurrentGame   *bool    `json:"show_current_game,omitempty"`
+	Theme             string   `json:"theme,omitempty"` // emptystring should not be sent
+	MutedChanIDs      []string `json:"muted_channels,omitempty"`
+	InlineAttachMedia *bool    `json:"inline_attachment_media,omitempty"`
 	
 }
 type Tutorial struct{

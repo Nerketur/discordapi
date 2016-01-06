@@ -1,7 +1,7 @@
 # discordapi
 A GoLang API wrapper for the Discord REST API (unofficial) and preliminary websockets
 
-v0.7.1 alpha
+v0.8.0 alpha
 
 ##About
 This is a simple low-level REST API Wrapper for Discord.  I am not affiliated with or endorsed by Discrd at all, this is meant as a way to learn Go better as a language.  It may contain errors, bugs, and any other such oddities, but it seems to work for me :)
@@ -11,6 +11,8 @@ Later on, I will have better websocket support, but if you want a good one right
 Version system will be sporadic until 1.0, safe to ignore, other than alpha means preliminary, beta means set on paper, and stable means more or less set in stone.
 
 ##Usage
+
+Please note that *as-is*, this example will only work if run with *your* account info.  To get it to work with others, follow the comments instructions.
 ```go
 package main
 
@@ -26,7 +28,9 @@ func parseCmd(c discord.Discord, data discord.MESSAGE_CREATE) {
 	if !strings.HasPrefix(data.Content, cmdPrefix) {
 		return
 	}
-	if data.Author.Username != "Nerketur" {
+	if data.Author.ID != c.Me.ID {  //comment out before uncommenting below
+	//if data.Author.Name != "Name" { //use this instead for checking names
+	//if data.Author.ID != "UserID" { //use this instead to check for a User ID (string of numbers)
 		//c.SendTextMsg("Sorry, you can't use this command", data.ChanID)
 		return
 	}
@@ -44,6 +48,15 @@ func parseCmd(c discord.Discord, data discord.MESSAGE_CREATE) {
 	}
 }
 
+func callback(cl discord.Discord, event string, data interface{}) {
+	fmt.Println("\tuser callback called:", event)
+	if mc, ok := data.(discord.MESSAGE_CREATE); ok {
+		parseCmd(cl, mc)
+	}
+	fmt.Println()
+}
+
+
 func main() {
 	client, err := discord.Login("temp1@example.com", "12345")
 	if err != nil {
@@ -54,14 +67,8 @@ func main() {
 		fmt.Println("Empty client!  Check your network connection.")
 		return
 	}
-	call := discord.Callback(func(event string, data interface{}) {
-		fmt.Println("\tuser callback called:", event)
-		if mc, ok := data.(discord.MESSAGE_CREATE); ok {
-			parseCmd(client, mc)
-		}
-		fmt.Println()
-	})
 	fmt.Println("Attempting websocket connection...")
+	call := discord.Callback(callback)
 	err = client.WSConnect(&call) // required if websockets is desired
 	if err != nil {
 		fmt.Println("websocket error:", err)

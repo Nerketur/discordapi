@@ -13,24 +13,27 @@ type State struct{
 	LastMessageId string `json:"last_message_id,omitempty"`
 	ID            string `json:"id"`
 }
-type WSVoiceStates struct{
-	UserID    string `json:"user_id"`
-	Token     string `json:"token"`
-	Suppress  bool   `json:"suppress"`
-	SessionID string `json:"session_id"`
-	SelfMute  bool   `json:"self_mute"`
-	SelfDeaf  bool   `json:"self_deaf"`
-	Mute      bool   `json:"mute"`
-	Deaf      bool   `json:"deaf"`
-	ChannelID string `json:"channel_id"`
+type WSVoiceState struct{
+	UserID    string  `json:"user_id"`
+	Token     string  `json:"token"`
+	Suppress  bool    `json:"suppress"`
+	SessionID string  `json:"session_id"`
+	SelfMute  *bool   `json:"self_mute"`
+	SelfDeaf  *bool   `json:"self_deaf"`
+	Mute      bool    `json:"mute"`
+	Deaf      bool    `json:"deaf"`
+	ChannelID *string `json:"channel_id"`
+	GuildID   string  `json:"guild_id"`
 }
 type WSPres struct{
 	User      User     `json:"user"`
 	Status    string   `json:"status"`
 	Roles     []string `json:"roles,omitempty"`
 	GuildID   string   `json:"guild_id,omitempty"`
-	Game      *Game     `json:"game"`
+	Game      *Game    `json:"game"`
 }
+
+type _pres []WSPres
 
 type Game struct{
 	Name string `json:"name"`
@@ -98,12 +101,92 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 		data := PRESENCE_UPDATE{}
 		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
+	case "GUILD_CREATE":
+		data := GUILD_CREATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_UPDATE":
+		data := GUILD_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_DELETE":
+		data := GUILD_DELETE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_ROLE_CREATE":
+		data := GUILD_ROLE_CREATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_ROLE_UPDATE":
+		data := GUILD_ROLE_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_ROLE_DELETE":
+		data := GUILD_ROLE_DELETE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_MEMBER_ADD":
+		data := GUILD_MEMBER_ADD{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_MEMBER_UPDATE":
+		data := GUILD_MEMBER_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_MEMBER_REMOVE":
+		data := GUILD_MEMBER_REMOVE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_BAN_ADD":
+		data := GUILD_BAN_ADD{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_BAN_REMOVE":
+		data := GUILD_BAN_REMOVE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "GUILD_INTEGRATIONS_UPDATE":
+		data := GUILD_INTEGRATIONS_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "CHANNEL_CREATE":
+		data := CHANNEL_CREATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "CHANNEL_UPDATE":
+		data := CHANNEL_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "CHANNEL_DELETE":
+		data := CHANNEL_DELETE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
 	case "MESSAGE_CREATE":
 		data := MESSAGE_CREATE{}
 		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
+	case "MESSAGE_UPDATE":
+		data := MESSAGE_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "MESSAGE_DELETE":
+		data := MESSAGE_DELETE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "MESSAGE_ACK":
+		data := MESSAGE_ACK{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
 	case "TYPING_START":
 		data := TYPING_START{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "USER_SETTINGS_UPDATE":
+		data := USER_SETTINGS_UPDATE{}
+		err = json.Unmarshal(rawData, &data)
+		msg.Data = data
+	case "VOICE_STATE_UPDATE":
+		data := VOICE_STATE_UPDATE{}
 		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
 	default:
@@ -150,6 +233,7 @@ func (m *MESSAGE_CREATE) UnmarshalJSON(raw []byte) (err error) {
 }
 
 
+//TODO add compression
 type READY struct{ // op from server (0)
 	Version           int        `json:"v"`
 	User              User       `json:"user"`
@@ -160,8 +244,102 @@ type READY struct{ // op from server (0)
 	HeartbeatInterval uint64     `json:"heartbeat_interval"`
 	Guilds            []Guild    `json:"guilds"`
 }
+/*
+* means unparsed
++ means implemented with cache
+x means not planning to implement
+- means eventual new event
+= means not fully impemented
+? means possible new event
+    +CHANNEL_CREATE
+    ?CHANNEL_CREATE (private)
+    +CHANNEL_DELETE
+    ?CHANNEL_DELETE (private)
+    +CHANNEL_UPDATE
+    +GUILD_CREATE
+    -GUILD_CREATE (unavailable)
+    +GUILD_DELETE
+    -GUILD_DELETE (unavailable)
+    +GUILD_UPDATE
+    =GUILD_BAN_ADD
+    =GUILD_BAN_REMOVE
+    +GUILD_MEMBER_ADD
+    +GUILD_MEMBER_REMOVE
+    +GUILD_MEMBER_UPDATE
+    +GUILD_ROLE_CREATE
+    +GUILD_ROLE_DELETE
+    +GUILD_ROLE_UPDATE
+    GUILD_INTEGRATIONS_UPDATE
+    MESSAGE_CREATE
+    MESSAGE_DELETE
+    MESSAGE_UPDATE
+    MESSAGE_UPDATE (embeds only)
+    +PRESENCE_UPDATE
+    +READY
+    xTYPING_START //pointless for bots?
+    USER_SETTINGS_UPDATE //unsure if this is really needed
+    VOICE_STATE_UPDATE
+	xMESSAGE_ACK //unimportant,clients only
+    OP 7
+
+*/
+type WSBan struct{
+	GuildID string `json:"guild_id"`
+	User    User   `json:"user"`
+}
+type WSRole interface{
+	GetGuildID() string
+	GetRoleID() string
+	GetRole() Role
+}
+func (m GUILD_ROLE_CREATE) GetGuildID() string {return m.GuildID}
+func (m GUILD_ROLE_UPDATE) GetGuildID() string {return m.GuildID}
+func (m GUILD_ROLE_DELETE) GetGuildID() string {return m.GuildID}
+
+func (m GUILD_ROLE_CREATE) GetRoleID() string {return m.Role.ID}
+func (m GUILD_ROLE_UPDATE) GetRoleID() string {return m.Role.ID}
+func (m GUILD_ROLE_DELETE) GetRoleID() string {return m.RoleID}
+
+func (m GUILD_ROLE_CREATE) GetRole() Role {return m.Role}
+func (m GUILD_ROLE_UPDATE) GetRole() Role {return m.Role}
+func (m GUILD_ROLE_DELETE) GetRole() Role {return Role{ID: m.RoleID,}}
+
+type MESSAGE_ACK struct{
+	MessageID string `json:"message_id"`
+	ChannelID string `json:"channel_id"`
+}
+type USER_SETTINGS_UPDATE Setting
+type VOICE_STATE_UPDATE WSVoiceState
+type GUILD_CREATE Guild
+type GUILD_UPDATE Guild
+type GUILD_DELETE Guild
+type GUILD_MEMBER_ADD Member
+type GUILD_MEMBER_UPDATE Member
+type GUILD_MEMBER_REMOVE Member
+type GUILD_BAN_ADD WSBan
+type GUILD_BAN_REMOVE WSBan
+type GUILD_ROLE_CREATE struct{
+	GuildID string `json:"guild_id"`
+	Role    Role   `json:"role"`
+}
+type GUILD_ROLE_UPDATE struct{
+	GuildID string `json:"guild_id"`
+	Role    Role   `json:"role"`
+}
+type GUILD_ROLE_DELETE struct{
+	GuildID string `json:"guild_id"`
+	RoleID  string `json:"role_id"`
+}
+type GUILD_INTEGRATIONS_UPDATE struct{
+	GuildID string `json:"guild_id"`
+}
+type CHANNEL_CREATE Channel
+type CHANNEL_UPDATE Channel
+type CHANNEL_DELETE Channel
 type MESSAGE_CREATE Message
-type PRESENCE_UPDATE WSPres
+type MESSAGE_UPDATE Message
+type MESSAGE_DELETE Message
+type PRESENCE_UPDATE map[string]interface{}
 type TYPING_START struct{
 	ChanID    string `json:"channel_id"`
 	//ChanID    int    `json:"channel_id"`  //check error
@@ -213,83 +391,66 @@ persist:
 	5.) set up a way to send said heartbeat every heartbeat_interval milliseconds.  it can't miss, but it doesn't have to be exactly that many every time.
 */
 
-func wsSend(con *websocket.Conn, msgSend, other chan WSMsg, stopWS, exit chan int) {
+func stopSend(con *websocket.Conn, done chan int) {
+	//send close message
+	fmt.Println("wsSend: got stop mssage")
+	//fmt.Println("wsSend: closing send")
+	//its okay if we continue recieving a bit before the close message is read.
+	//channel was closed, send close frame and exit
+	fmt.Println("wsSend: sending close frame")
+	err := con.WriteControl(websocket.CloseMessage, nil, time.Now().Add(3*time.Second))
+	if err != nil { //if theres an error sending, print err, exit
+		fmt.Println("wsSend: control frame send err:", err)
+	}
+	close(done)
+}
+
+func wsSend(con *websocket.Conn, msgSend chan WSMsg, done, readDone, stopWS chan int) {
+	defer fmt.Println("wsSend: goroutine stopped")
 	seq := 1
 	for {
 		select {
 		case <-stopWS:
-			//send close message
-			fmt.Println("got stop mssage")
-			fmt.Println("sending close frame (send, before read)")
-			err := con.WriteControl(websocket.CloseMessage, nil, time.Now().Add(3*time.Second))
-			if err != nil { //if theres an error sending, assume corrupted, exit
-				fmt.Println("control frame send err:", err)
-				select {
-					case _, ok := <-exit:
-						if ok {
-							close(exit)
-						}
-					default:
-				}
-				close(msgSend)// panic on trying to send more
-			}
-			return //end for, exit immediately
-			//its okay if we continue recieving a bit before the close message is read.
-		case nextMsg, ok := <-msgSend:
+			stopSend(con, done)
+			return
+		case <-readDone:
+			stopSend(con, done)
+			return
+		case nextMsg, ok := <- msgSend:
 			if ok {
 				//send the message on the channel to the connection
-				
 				nextMsg.Seq = seq
 				seq++
-				fmt.Println("sending msg", nextMsg.Type)
+				fmt.Println("wsSend: sending msg", nextMsg.Type)
 				j, _ := json.Marshal(nextMsg)
-				fmt.Printf("msg sent: `%s`\n", j)
+				fmt.Printf("wsSend: msg sent: `%s`\n", j)
 				if err := con.WriteJSON(&nextMsg); err != nil {
 					fmt.Println("wsSend:",err)
 				}
-			} else {
-				//if ok is false, channel was closed by read, so send close frame and exit
-				fmt.Println("sending close frame (send, after read)")
-				con.WriteControl(websocket.CloseMessage, nil, time.Now())
-				close(other)
-				close(exit)
-				return
 			}
 		}
 	}
 }
 
-func wsRead(con *websocket.Conn, other, msgRead chan WSMsg, stopWS, exit, timer chan int) {
+func wsRead(con *websocket.Conn, msgRead chan WSMsg, done chan int) {
+	defer fmt.Println("wsRead: goroutine stopped")
 	var nextMsg WSMsg
 	for {
 		//read the next message, put it on the channel
 		err := con.ReadJSON(&nextMsg)
 		if err != nil {
-			
-			if _, ok := err.(*websocket.CloseError); !ok {
-				//act as if timer elapsed
-				close(timer)
-			}
-			//print value from connection
-			fmt.Println("wsRead:",err)
-			select {
-			case <-stopWS:
-				//send already sent frame.  close and exit
-				fmt.Println("wsRead: send already sent, so exiting")
-				close(msgRead)
-				close(exit) // exit
-			default:
-				//send has NOT sent frame.  close send and exit
-				fmt.Println("wsRead: send not sent close, so closing send then exiting")
-				close(other)
-				//do NOT close exit until close frame sent)
-			}
-			//send will close exit channel
+			fmt.Println("wsRead:", err)
+			fmt.Println("wsRead: stopping")
+			//we either need to send close, or we already sent close.
+			//either way, close readdone
+			close(done)  // this signals to wssend to start close if needed
+			close(msgRead)  // this signals to process to stop
+			//and exit
 			return
 		}
 		//fmt.Println("Read from conn")
 		//err = json.Unmarshal(msg, &nextMsg)
-		fmt.Printf("Read %T from conn\n", nextMsg.Data)
+		fmt.Printf("wsRead: Read %T from conn\n", nextMsg.Data)
 		nextMsg.time = time.Now()
 		msgRead <- nextMsg
 	}
@@ -325,11 +486,11 @@ func wsHeartbeat(con *websocket.Conn, msInterval uint64) {
 	}
 }
 
-type Callback func(event string, data interface{})
+type Callback func(c Discord, event string, data interface{})
 
-func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, stopWS, exit chan int, CB *Callback) {
+func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB *Callback) {
 	if CB == nil {
-		def := Callback(func(string, interface{}) {}) //the do nothing callback
+		def := Callback(func(Discord, string, interface{}) {}) //the do nothing callback
 		CB = &def
 	}
 
@@ -341,10 +502,14 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 	//A close frame sent requires waiting for recieving before closing
 	//a close frame recieved requires sending, then closing
 	//Gorrilla handles close frames by returning an error (along with the frame read)
+	
+	//accomplish this with read channel and sendsdone channels, which we wait for
+	readDone := make(chan int)
+	sendDone := make(chan int)
 	fmt.Println("starting sender")
-	go wsRead(con, msgSend, msgRead, stopWS, exit, c.sigTime) // if we err on read, we have to send close frame then exit.
+	go wsRead(con, msgRead, readDone)
 	fmt.Println("starting reader")
-	go wsSend(con, msgSend, msgRead, stopWS, exit) // if we send close frame, we have to wait for a response
+	go wsSend(con, msgSend, sendDone, readDone, c.sigStop)
 	fmt.Println("starting process")
 	for msg := range msgRead {
 		//process messages
@@ -352,10 +517,14 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 		switch msg.Op {
 		case 0:
 			//default, most
+			d, ok := msg.Data.(*json.RawMessage)
+			if ok {
+				//json.rawmessage, so unexpected type
+				fmt.Print("unexpected ")
+			}
+			fmt.Printf("type read '%v':\n", msg.Type)
 			switch msg.Type {
 			//here, we only catch types that change internal state
-			//as of yet, the oly one to do that is "READY"
-			//  (because heartbeats)
 			//All the rest of the coding is done by the handeler of the callback.
 			case "READY":
 				parsed, ok := msg.Data.(READY)
@@ -372,33 +541,258 @@ func (c Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, sto
 					wsHeartbeat(con, parsed.HeartbeatInterval)
 				})
 				//fill arrays
-				fmt.Println("filling guild and chan arrys...")
-				c.MyGuilds = parsed.Guilds
-				c.MyChans = parsed.PrivateChannels
-				fmt.Println("Arrays filled!")
-
-			default:
-				d, ok := msg.Data.(*json.RawMessage)
-				if ok {
-					//json.rawmessage, so unexpected type
-					fmt.Print("unexpected ")
+				fmt.Println("filling cache...")
+				c.cache = &parsed
+				c.Me = &parsed.User
+				if len(c.cache.Guilds) == 0 {
+					panic("cache should not be empty! -- just after assign --")
 				}
-				fmt.Printf("type read '%v':\n", msg.Type)
+				fmt.Println("cache filled!")
+
+			//TODO: add code differentiating between unavailable guild
+			// messages and normal messages
+			// (make new events)
+			case "GUILD_CREATE","GUILD_UPDATE","GUILD_DELETE":
+				//parse guild stuff
+				var parsed Guild
+				switch msg.Data.(type) {
+				case GUILD_CREATE:
+					tmp, _ := msg.Data.(GUILD_CREATE)
+					parsed = Guild(tmp)
+				case GUILD_UPDATE:
+					tmp, _ := msg.Data.(GUILD_UPDATE)
+					parsed = Guild(tmp)
+				case GUILD_DELETE:
+					tmp, _ := msg.Data.(GUILD_DELETE)
+					parsed = Guild(tmp)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
+				}
+				c.GuildParseWS(msg.Type, parsed)
+			case "CHANNEL_CREATE","CHANNEL_UPDATE","CHANNEL_DELETE":
+				//parse guild stuff
+				var parsed Channel
+				switch msg.Data.(type) {
+				case CHANNEL_CREATE:
+					tmp, _ := msg.Data.(CHANNEL_CREATE)
+					parsed = Channel(tmp)
+				case CHANNEL_UPDATE:
+					tmp, _ := msg.Data.(CHANNEL_UPDATE)
+					parsed = Channel(tmp)
+				case CHANNEL_DELETE:
+					tmp, _ := msg.Data.(CHANNEL_DELETE)
+					parsed = Channel(tmp)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
+				}
+				if parsed.Private {
+					c.PrivateChannelParseWS(msg.Type, parsed)
+				} else {
+					c.ChannelParseWS(msg.Type, parsed)
+				}
+			case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE","GUILD_MEMBER_REMOVE":
+				//parse guild member stuff
+				var parsed Member
+				switch msg.Data.(type) {
+				case GUILD_MEMBER_ADD:
+					tmp, _ := msg.Data.(GUILD_MEMBER_ADD)
+					parsed = Member(tmp)
+				case GUILD_MEMBER_UPDATE:
+					tmp, _ := msg.Data.(GUILD_MEMBER_UPDATE)
+					parsed = Member(tmp)
+				case GUILD_MEMBER_REMOVE:
+					tmp, _ := msg.Data.(GUILD_MEMBER_REMOVE)
+					parsed = Member(tmp)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
+				}
+				c.GuildMemberParseWS(msg.Type, parsed)
+			case "GUILD_BAN_ADD", "GUILD_BAN_REMOVE":
+				var parsed WSBan
+				switch msg.Data.(type) {
+				case GUILD_BAN_ADD:
+					tmp, _ := msg.Data.(GUILD_BAN_ADD)
+					parsed = WSBan(tmp)
+				case GUILD_BAN_REMOVE:
+					tmp, _ := msg.Data.(GUILD_BAN_REMOVE)
+					parsed = WSBan(tmp)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
+				}
+				c.GuildBanParseWS(msg.Type, parsed)
+			case "GUILD_ROLE_CREATE", "GUILD_ROLE_UPDATE", "GUILD_ROLE_DELETE":
+				var parsed WSRole
+				switch msg.Data.(type) {
+				case GUILD_ROLE_CREATE:
+					parsed, _ = msg.Data.(GUILD_ROLE_CREATE)
+				case GUILD_ROLE_UPDATE:
+					parsed, _ = msg.Data.(GUILD_ROLE_UPDATE)
+				case GUILD_ROLE_DELETE:
+					parsed, _ = msg.Data.(GUILD_ROLE_DELETE)
+				default:
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					close(c.sigStop)
+				}
+				c.GuildRoleParseWS(msg.Type, parsed)
+			case "PRESENCE_UPDATE":
+				parsed, ok := msg.Data.(PRESENCE_UPDATE)
 				if ok {
-					fmt.Printf("%s\n\n", d)
+					//parse presences
+					c.wsUpdatePres(map[string]interface{}(parsed))
+				} else {
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					fmt.Println("Ignoring...")
+				}
+			default:
+				if debug {
+					if c.cache == nil {
+						panic("cache should not be nil! -- default case --")
+					} else if len(c.cache.Guilds) == 0 {
+						panic("guild cache should not be empty! -- default case --")
+					}
+				}
+				if ok {
+					fmt.Printf("%s\n(needs adding)\n\n", d)
 				} else {
 					fmt.Printf("%#v\n\n", msg.Data)
 				}
 			}
 			
 			call := *CB
-			call(msg.Type, msg.Data)
+			call(*c, msg.Type, msg.Data)
 		default:
 			fmt.Printf("unexpected op '%v':\n%#v\n\n", msg.Op, msg.Data)
 		}
 	}
-	fmt.Println("Reads closed, exiting process")
+	fmt.Println("Reads closed, waiting for send to finish")
+	<-sendDone
+	fmt.Println("waiting for read to finish")
+	<-readDone //just in case
+	
+	fmt.Println("closing safe/exit")
+	close(c.sigSafe)
+	select { // used to lose sigtime if not closed
+	case <-c.sigTime: //dont close if closed
+	default: //close if not closed
+		close(c.sigTime)
+	}
+	fmt.Println("all finished, exiting process")
 }
+func (c Discord) wsUpdatePres(rep map[string]interface{}) {
+	//will always have user with ID, guildID, and status
+	user, uok := rep["user"].(map[string]interface{})
+	userID, iok := user["id"].(string)
+	guildID, gok := rep["guild_id"].(string)
+	status, sok := rep["status"].(string)
+	gameEx, gmok := rep["game"]
+	if !(uok && iok && gok && sok && gmok) {
+		fmt.Println("Incorrect format of update!  ignoring update")
+		return
+	}
+	
+	//populate required fields
+	guild, err := guilds(c.cache.Guilds).FindIdxID(guildID)
+	if err != nil {
+		fmt.Println("pres update guildID err:", err)
+		fmt.Println("ignoring whole update")
+		return
+	}
+	g := c.cache.Guilds[guild]
+	//after this point we update anyway, even if info is missing
+	pres, err := _pres(g.Presences).FindIdx(userID)
+	if err != nil {
+		fmt.Println("pres update warning:", err)
+		pres = len(g.Presences)
+		g.Presences = append(g.Presences, WSPres{})
+	}
+	p := g.Presences[pres]
+	if debug {
+		fmt.Printf("\t\told:\n\t\t%#v\n", p)
+	}
+	u := p.User
+	p.Status = status
+	
+	//optional fields include roles, game (and game.name), and the following
+	/*
+		user.verified      bool
+		user.username      string
+		user.email         string
+		user.discriminator string
+		user.id            string
+		user.avatar        *string
+	*/
+	if _, ok := rep["roles"]; ok {
+		roles := rep["roles"].([]interface{})
+		p.Roles = nil
+		for _, role := range roles {
+			if str, ok := role.(string); ok {
+				p.Roles = append(p.Roles, str)
+			}
+		}
+	}
+	
+	var newGame *Game
+	if game, ok := gameEx.(map[string]interface{}); ok {
+		if _, ok = game["name"]; ok {
+			if name, ok := game["name"].(string); ok {
+				tmp := Game{
+					Name: name,
+				}
+				newGame = &tmp
+			}
+		}
+	}
+	p.Game = newGame
+	if ver, ok := user["verified"]; ok {
+		u.Verified = ver.(bool)
+	}
+	if un, ok := user["username"]; ok {
+		u.Username = un.(string)
+	}
+	if em, ok := user["email"]; ok {
+		u.Email = em.(string)
+	}
+	if ds, ok := user["discriminator"]; ok {
+		u.Discriminator = ds.(string)
+	}
+	if av, ok := user["avatar"]; ok {
+		u.Avatar = nil
+		if tmp, ok := av.(string); ok {
+			u.Avatar = &tmp
+		}
+	}
+	p.User = u
+	g.Presences[pres] = p
+	c.cache.Guilds[guild] = g
+	if debug {
+		fmt.Printf("\t\tnew:\n\t\t%#v\n\n", c.cache.Guilds[guild].Presences[pres])
+	}
+}
+
+func (p _pres) FindIdx(ID string) (int, error) {
+	for idx, ele := range p {
+		if ele.User.ID == ID {
+			return idx, nil
+		}
+	}
+	return -1, IDNotFoundError(ID)
+}
+
+/*
+func (c guilds) FindIdxID(ID string) (int, error) {
+	for idx, ele := range c {
+		if ele.ID == ID {
+			return idx, nil
+		}
+	}
+	return -1, IDNotFoundError(ID)
+}
+*/
+
 func (c Discord) WSInit(con *websocket.Conn, msgChan chan WSMsg) {
 	//send init on wire
 	p := Properties{
@@ -444,6 +838,6 @@ func (c Discord) WSConnect(call *Callback) (err error) {
 	msgRead := make(chan WSMsg)
 	c.WSInit(con, msgSend)//ensure this is FIRST
 	fmt.Println("init sent")
-	go c.WSProcess(con, msgSend, msgRead, c.sigStop, c.sigSafe, call)
+	go c.WSProcess(con, msgSend, msgRead, call)
 	return
 }

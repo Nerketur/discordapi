@@ -20,21 +20,35 @@ func (c Discord) ChanID(guildID, name string) (string, error) {
 	return channel.ID, err
 }
 
-func (c _chan) Find(name string) (Channel, error) {
-	for _, ele := range c {
-		if ele.Name == name {
-			return ele, nil
-		}
+func (c _chan) Find(name string) (ch Channel, err error) {
+	idx, err := c.FindNameIdx(name)
+	if err == nil {
+		ch = c[idx]
 	}
-	return Channel{}, NameNotFoundError(name)
+	return
 }
-func (c _chan) FindIdx(id string) (int, error) {
+func (c _chan) FindID(ID string) (ch Channel, err error) {
+	idx, err := c.FindIdxID(ID)
+	if err == nil {
+		ch = c[idx]
+	}
+	return
+}
+func (c _chan) FindNameIdx(name string) (int, error) {
 	for idx, ele := range c {
-		if ele.ID == id {
+		if ele.Name == name {
 			return idx, nil
 		}
 	}
-	return -1, IDNotFoundError("id: " + id)
+	return -1, NameNotFoundError("name: " + name)
+}
+func (c _chan) FindIdxID(ID string) (int, error) {
+	for idx, ele := range c {
+		if ele.ID == ID {
+			return idx, nil
+		}
+	}
+	return -1, IDNotFoundError("id: " + ID)
 }
 
 func (c Discord) SendTyping(chanID string) (err error) {
@@ -106,11 +120,6 @@ func (c Discord) ChanDelete(chanID string) (err error) {
 	return
 }
 func (c *Discord) PrivateChanDelete(chanID string) (err error) {
-	idx, err := _chan(c.MyChans).FindIdx(chanID)
-	if err != nil {
-		return
-	}
-	c.MyChans = append(c.MyChans[:idx-1], c.MyChans[idx+1:]...)
 	return c.ChanDelete(chanID)
 }
 //{"max_age":1800,"max_uses":0,"temporary":false,"xkcdpass":true}
@@ -159,4 +168,38 @@ func (c Discord) ChanInvites(chanID string) (resp []Invite, err error) {
 	
 	fmt.Println("got chan invites!")
 	return
+}
+
+func (c *Discord) AddChan(gIdx int, ch Channel) {
+	guild := c.cache.Guilds[gIdx]
+	guild.Channels = append(guild.Channels, ch)
+	c.cache.Guilds[gIdx] = guild
+}
+func (c *Discord) RemChanIdx(gIdx, idx int) {
+	guild := c.cache.Guilds[gIdx]
+	if idx == len(guild.Channels)-1 {
+		guild.Channels = guild.Channels[:idx]
+	} else {
+		guild.Channels = append(guild.Channels[:idx], guild.Channels[idx+1:]...)
+	}
+	c.cache.Guilds[gIdx] = guild
+}
+
+
+func (c *Discord) ChannelParseWS(event string, ch Channel) {
+	gIdx, err := guilds(c.cache.Guilds).FindIdxID(ch.GuildID)
+	if err != nil {
+		fmt.Println("chan parse err:", err)
+		return
+	}
+	cIdx, err := _chan(c.cache.Guilds[gIdx].Channels).FindIdxID(ch.ID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if event != "CHANNEL_CREATE" && err == nil {
+		c.RemChanIdx(gIdx, cIdx)
+	}
+	if event != "CHANNEL_DELETE" {
+		c.AddChan(gIdx, ch)
+	}
 }

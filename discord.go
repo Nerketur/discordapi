@@ -14,8 +14,6 @@ func Login(email, pass string) (Discord, error) {
 	
 	client := Discord{ // only created once per client.
 		Client: &http.Client{ },
-		MyGuilds: []Guild{},
-		MyChans: []Channel{},
 		sigStop: make(chan int),
 		sigSafe: make(chan int),
 		sigTime: make(chan int),
@@ -121,7 +119,7 @@ func (c Discord) SetMaxRuntime(amt time.Duration, expireMsg string) {
 }
 
 func Version() string {
-	return "v0.7.1 alpha"
+	return "v0.8.0 alpha"
 }
 func VersionString() string {
 	return fmt.Sprintf("Discord Go API %s", Version())
