@@ -421,5 +421,3 @@ func (c *Discord) GuildRoleParseWS(event string, r WSRole) {
 	}
 	c.cache.Guilds[gIdx] = g
 }
-//				c.GuildBanParseWS(msg.Type, parsed)
-//				c.GuildRoleParseWS(msg.Type, parsed)

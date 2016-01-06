@@ -61,7 +61,7 @@ func (c *Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
 	}
 	
 	pcs := _chan(c.cache.PrivateChannels)
-	pcs.AddChan(resp)
+	//pcs.AddChan(resp) //only needed if no websocket
 	fmt.Printf("%#v\n", pcs)
 	fmt.Println("created (opened) private channel successfully!")
 	return

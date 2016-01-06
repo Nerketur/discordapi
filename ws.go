@@ -543,6 +543,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				//fill arrays
 				fmt.Println("filling cache...")
 				c.cache = &parsed
+				c.Me = &parsed.User
 				if len(c.cache.Guilds) == 0 {
 					panic("cache should not be empty! -- just after assign --")
 				}
