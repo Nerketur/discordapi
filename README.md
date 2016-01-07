@@ -4,7 +4,7 @@ A GoLang API wrapper for the Discord REST API (unofficial) and preliminary webso
 v0.8.0 alpha
 
 ##About
-This is a simple low-level REST API Wrapper for Discord.  I am not affiliated with or endorsed by Discrd at all, this is meant as a way to learn Go better as a language.  It may contain errors, bugs, and any other such oddities, but it seems to work for me :)
+This is a simple low-level REST API Wrapper for Discord.  I am not affiliated with or endorsed by Discord at all, this is meant as a way to learn Go better as a language.  It may contain errors, bugs, and any other such oddities, but it seems to work for me :)
 
 Later on, I will have better websocket support, but if you want a good one right now, then please use [go-discord](https://github.com/gdraynz/go-discord) instead (or in addition to mine)!
 
