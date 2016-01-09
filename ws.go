@@ -98,9 +98,10 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
 	case "PRESENCE_UPDATE":
-		data := PRESENCE_UPDATE{}
+		var data json.RawMessage
 		err = json.Unmarshal(rawData, &data)
-		msg.Data = data
+		msg.Data = PRESENCE_UPDATE(data)
+		//keep it a jsonRawMessage t parse later
 	case "GUILD_CREATE":
 		data := GUILD_CREATE{}
 		err = json.Unmarshal(rawData, &data)
@@ -193,7 +194,11 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 		fmt.Printf("unknown message type: %q\n", msg.Type)
 	}
 	if msg.Type != "READY" {
-		fmt.Printf("object:\n\t%#v\n", msg)
+		tmp := msg
+		if _, ok := msg.Data.(PRESENCE_UPDATE); ok {
+			tmp.Data = fmt.Sprintf("%s", msg.Data)
+		}
+		fmt.Printf("object:\n\t%#v\n", tmp)
 		fmt.Printf("raw:\n\t%s\n", rawData)
 	}
 	*m = WSMsg(msg)
@@ -339,7 +344,7 @@ type CHANNEL_DELETE Channel
 type MESSAGE_CREATE Message
 type MESSAGE_UPDATE Message
 type MESSAGE_DELETE Message
-type PRESENCE_UPDATE map[string]interface{}
+type PRESENCE_UPDATE json.RawMessage
 type TYPING_START struct{
 	ChanID    string `json:"channel_id"`
 	//ChanID    int    `json:"channel_id"`  //check error
@@ -357,7 +362,7 @@ type Properties struct{
 type INIT struct{ //op 2
 	Token       string      `json:"token"`
 	Version     int         `json:"v"`
-	Properties  *Properties `json:"properties,omitempty"`
+	Properties  Properties `json:"properties"`
 	LargeThresh int         `json:"large_threshold,omitempty"`
 	Compress    bool        `json:"compress,omitempty"`
 }
@@ -642,9 +647,15 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				parsed, ok := msg.Data.(PRESENCE_UPDATE)
 				if ok {
 					//parse presences
-					c.wsUpdatePres(map[string]interface{}(parsed))
+					var err error
+					msg.Data, err = c.wsUpdatePres2(parsed)
+					if err != nil {
+						fmt.Println(err)
+						fmt.Println("ignoring")
+						
+					}
 				} else {
-					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
+					fmt.Printf("Expected json.RawMessage, got %T\n", msg.Data)
 					fmt.Println("Ignoring...")
 				}
 			default:
@@ -682,95 +693,44 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 	}
 	fmt.Println("all finished, exiting process")
 }
-func (c Discord) wsUpdatePres(rep map[string]interface{}) {
-	//will always have user with ID, guildID, and status
-	user, uok := rep["user"].(map[string]interface{})
-	userID, iok := user["id"].(string)
-	guildID, gok := rep["guild_id"].(string)
-	status, sok := rep["status"].(string)
-	gameEx, gmok := rep["game"]
-	if !(uok && iok && gok && sok && gmok) {
-		fmt.Println("Incorrect format of update!  ignoring update")
+func (c *Discord) wsUpdatePres2(rep PRESENCE_UPDATE) (p WSPres, err error) {
+	need := struct{
+		GuildID string `json:"guild_id"`
+		User struct{
+			ID string
+		}
+	}{}
+	var pres int
+	
+	raw := json.RawMessage(rep)
+	
+	if err = json.Unmarshal(raw, &need); err != nil {
 		return
 	}
-	
-	//populate required fields
-	guild, err := guilds(c.cache.Guilds).FindIdxID(guildID)
+	guild, err := guilds(c.cache.Guilds).FindIdxID(need.GuildID)
 	if err != nil {
 		fmt.Println("pres update guildID err:", err)
-		fmt.Println("ignoring whole update")
 		return
 	}
 	g := c.cache.Guilds[guild]
 	//after this point we update anyway, even if info is missing
-	pres, err := _pres(g.Presences).FindIdx(userID)
+	pres, err = _pres(g.Presences).FindIdx(need.User.ID)
 	if err != nil {
 		fmt.Println("pres update warning:", err)
 		pres = len(g.Presences)
 		g.Presences = append(g.Presences, WSPres{})
 	}
-	p := g.Presences[pres]
+	p = g.Presences[pres]
 	if debug {
 		fmt.Printf("\t\told:\n\t\t%#v\n", p)
 	}
-	u := p.User
-	p.Status = status
-	
-	//optional fields include roles, game (and game.name), and the following
-	/*
-		user.verified      bool
-		user.username      string
-		user.email         string
-		user.discriminator string
-		user.id            string
-		user.avatar        *string
-	*/
-	if _, ok := rep["roles"]; ok {
-		roles := rep["roles"].([]interface{})
-		p.Roles = nil
-		for _, role := range roles {
-			if str, ok := role.(string); ok {
-				p.Roles = append(p.Roles, str)
-			}
-		}
-	}
-	
-	var newGame *Game
-	if game, ok := gameEx.(map[string]interface{}); ok {
-		if _, ok = game["name"]; ok {
-			if name, ok := game["name"].(string); ok {
-				tmp := Game{
-					Name: name,
-				}
-				newGame = &tmp
-			}
-		}
-	}
-	p.Game = newGame
-	if ver, ok := user["verified"]; ok {
-		u.Verified = ver.(bool)
-	}
-	if un, ok := user["username"]; ok {
-		u.Username = un.(string)
-	}
-	if em, ok := user["email"]; ok {
-		u.Email = em.(string)
-	}
-	if ds, ok := user["discriminator"]; ok {
-		u.Discriminator = ds.(string)
-	}
-	if av, ok := user["avatar"]; ok {
-		u.Avatar = nil
-		if tmp, ok := av.(string); ok {
-			u.Avatar = &tmp
-		}
-	}
-	p.User = u
+	err = json.Unmarshal(raw, &p)
 	g.Presences[pres] = p
 	c.cache.Guilds[guild] = g
 	if debug {
 		fmt.Printf("\t\tnew:\n\t\t%#v\n\n", c.cache.Guilds[guild].Presences[pres])
 	}
+	return
 }
 
 func (p _pres) FindIdx(ID string) (int, error) {
