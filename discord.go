@@ -13,10 +13,14 @@ var debug bool = false
 func Login(email, pass string) (Discord, error) {
 	
 	client := Discord{ // only created once per client.
-		Client: &http.Client{ },
-		sigStop: make(chan int),
-		sigSafe: make(chan int),
-		sigTime: make(chan int),
+		Client:   &http.Client{ },
+		sigStop:  make(chan int),
+		sigSafe:  make(chan int),
+		sigTime:  make(chan int),
+		msgCache: make(map[string]Message),
+		gldCache: make(map[string]Guild),
+		usrCache: make(map[string]User),
+		chnCache: make(map[string]Channel),
 	}
 	
 	//start by trying to read the token from a file

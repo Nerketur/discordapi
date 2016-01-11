@@ -19,8 +19,10 @@ type Discord struct{
 	LoggingIn bool
 	cache     *READY
 	Me        *User
-	//MyGuilds  []Guild
-	//MyChans   []Channel
+	msgCache  map[string]Message
+	gldCache  map[string]Guild
+	usrCache  map[string]User
+	chnCache  map[string]Channel
 	sigStop   chan int
 	sigSafe   chan int
 	sigTime   chan int

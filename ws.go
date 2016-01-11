@@ -491,6 +491,19 @@ func wsHeartbeat(con *websocket.Conn, msInterval uint64) {
 	}
 }
 
+func (c *Discord) wsFillCaches(ws READY) {
+	for _, guild := range ws.Guilds {
+		c.gldCache[guild.ID] = guild
+		for _, member := range guild.Members {
+			//TODO: member-guild link
+			c.usrCache[member.User.ID] = member.User
+		}
+		for _, channel := range guild.Channels {
+			c.chnCache[channel.ID] = channel
+		}
+	}
+}
+
 type Callback func(c Discord, event string, data interface{})
 
 func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB *Callback) {
@@ -549,6 +562,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				fmt.Println("filling cache...")
 				c.cache = &parsed
 				c.Me = &parsed.User
+				go c.wsFillCaches(parsed)
 				if len(c.cache.Guilds) == 0 {
 					panic("cache should not be empty! -- just after assign --")
 				}
@@ -573,6 +587,13 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				default:
 					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					close(c.sigStop)
+					continue
+				}
+				//guild cache needs updating
+				if msg.Type == "GUILD_DELETE" {
+					delete(c.gldCache, parsed.ID)
+				} else {
+					c.gldCache[parsed.ID] = parsed
 				}
 				c.GuildParseWS(msg.Type, parsed)
 			case "CHANNEL_CREATE","CHANNEL_UPDATE","CHANNEL_DELETE":
@@ -591,10 +612,17 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				default:
 					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					close(c.sigStop)
+					continue
 				}
 				if parsed.Private {
+				
 					c.PrivateChannelParseWS(msg.Type, parsed)
 				} else {
+					if msg.Type == "CHANNEL_DELETE" {
+						delete(c.chnCache, parsed.ID)
+					} else {
+						c.chnCache[parsed.ID] = parsed
+					}
 					c.ChannelParseWS(msg.Type, parsed)
 				}
 			case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE","GUILD_MEMBER_REMOVE":
@@ -613,6 +641,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				default:
 					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					close(c.sigStop)
+					continue
 				}
 				c.GuildMemberParseWS(msg.Type, parsed)
 			case "GUILD_BAN_ADD", "GUILD_BAN_REMOVE":
@@ -627,6 +656,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				default:
 					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					close(c.sigStop)
+					continue
 				}
 				c.GuildBanParseWS(msg.Type, parsed)
 			case "GUILD_ROLE_CREATE", "GUILD_ROLE_UPDATE", "GUILD_ROLE_DELETE":
@@ -641,6 +671,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				default:
 					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					close(c.sigStop)
+					continue
 				}
 				c.GuildRoleParseWS(msg.Type, parsed)
 			case "PRESENCE_UPDATE":
@@ -755,17 +786,16 @@ func (c guilds) FindIdxID(ID string) (int, error) {
 
 func (c Discord) WSInit(con *websocket.Conn, msgChan chan WSMsg) {
 	//send init on wire
-	p := Properties{
-					 OS: "DiscordBot",
-				Browser: "discord.go",
-				 Device: "console",
-			   Referrer: "",
-		ReferringDomain: "",
-	}
 	msgData := INIT{
 		Token: c.Token,
 		Version: 3, // hard-coded so changes will only happen when coded in
-		Properties: &p,
+		Properties: Properties{
+						 OS: "DiscordBot",
+					Browser: "discord.go",
+					 Device: "console",
+				   Referrer: "",
+			ReferringDomain: "",
+		},
 	}
 	msg := WSMsg{
 		Op: 2,
