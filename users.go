@@ -67,18 +67,6 @@ func (c *Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
 	return
 }
 
-func (c *_chan) AddChan(ch Channel) {
-	*c = append(*c, ch)
-}
-func (ch *_chan) RemChanIdx(idx int) {
-	c := *ch
-	if idx == len(c)-1 {
-		c = c[:idx]
-	} else {
-		c = append(c[:idx], c[idx+1:]...)
-	}
-	*ch = c
-}
 /* func (c *Discord) RemPrivChanIdx(idx int) {
 	if idx == 0 {
 		c.MyChans = c.MyChans[1:]
@@ -108,23 +96,25 @@ func (c Discord) DeletePrivateChan(userID string) error { //API also returns del
 	return nil
 }
 
+func (c Discord) UserPres(guildID, userID string) (p WSPres, err error) {
+	gIdx, err := guilds(c.cache.Guilds).FindIdxID(guildID)
+	if err != nil {
+		return p, err
+	}
+	g := c.cache.Guilds[gIdx]
+	pIdx, err := _pres(g.Presences).FindIdx(userID)
+	if err != nil {
+		return p, err
+	}
+	fmt.Printf("presence: %#v\n", g.Presences[pIdx])
+	return g.Presences[pIdx], err
+}
+
 func (p WSPres) Playing() *string {
 	if p.Game == nil {
 		return nil
 	}
-	return &p.Game.Name
-}
-
-func (c *Discord) PrivateChannelParseWS(event string, ch Channel) {
-	chans := _chan(c.cache.PrivateChannels)
-	cIdx, err := chans.FindIdxID(ch.ID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if event != "CHANNEL_CREATE" && err == nil {
-		chans.RemChanIdx(cIdx)
-	}
-	if event != "CHANNEL_DELETE" {
-		chans.AddChan(ch)
-	}
+	tmp := *p.Game
+	fmt.Println("game:", tmp)
+	return &tmp.Name
 }

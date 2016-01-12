@@ -9,6 +9,7 @@ import (
 )
 
 var debug bool = false
+var wsdebug bool = false
 
 func Login(email, pass string) (Discord, error) {
 	
@@ -21,6 +22,7 @@ func Login(email, pass string) (Discord, error) {
 		gldCache: make(map[string]Guild),
 		usrCache: make(map[string]User),
 		chnCache: make(map[string]Channel),
+		priCache: make(map[string]Channel),
 	}
 	
 	//start by trying to read the token from a file

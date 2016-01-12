@@ -44,35 +44,6 @@ func (c guilds) FindIdxID(ID string) (int, error) {
 	return -1, IDNotFoundError(ID)
 }
 
-
-
-func (c *Discord) AddGuild(g Guild) {
-	c.cache.Guilds = append(c.cache.Guilds, g)
-}
-func (c *Discord) RemGuildIdx(idx int) {
-	if idx == len(c.cache.Guilds)-1 {
-		c.cache.Guilds = c.cache.Guilds[:idx]
-	} else {
-		c.cache.Guilds = append(c.cache.Guilds[:idx], c.cache.Guilds[idx+1:]...)
-	}
-}
-
-func (c *Discord) GuildParseWS(event string, g Guild) {
-	if g.Unavailable != nil {
-		return // ignore these messages for now
-	}
-	oldIdx, err := guilds(c.cache.Guilds).FindIdxID(g.ID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if event != "GUILD_CREATE" && err == nil {
-		c.RemGuildIdx(oldIdx)
-	}
-	if event != "GUILD_DELETE" {
-		c.AddGuild(g)
-	}
-}
-
 //now use cache instead
 func (c Discord) GuildMembers(guildID string) (resp []Member, err error) {
 	var idx int // to prevent shadowing
@@ -212,42 +183,6 @@ func (c Discord) GuildFindMember(guildID, n string) ([]Member, error) {
 	return members(membs).Find(n)
 }
 
-func (g *Guild) AddMember(m Member) {
-	g.Members = append(g.Members, m)
-}
-func (g *Guild) RemMemberIdx(idx int) {
-	if idx == len(g.Members)-1 {
-		g.Members = g.Members[:idx]
-	} else {
-		g.Members = append(g.Members[:idx], g.Members[idx+1:]...)
-	}
-}
-func (g *Guild) RemMember(m Member) {
-	idx, err := members(g.Members).FindIdxID(m.User.ID)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	g.RemMemberIdx(idx)
-}
-
-func (c *Discord) GuildMemberParseWS(event string, m Member) {
-	idx, err := guilds(c.cache.Guilds).FindIdxID(m.GuildID)
-	g := c.cache.Guilds[idx]
-	if err != nil {
-		fmt.Println("cache error:", err)
-		return
-	}
-	if event != "GUILD_MEMBER_ADD" {
-		g.RemMember(m)
-	}
-	if event != "GUILD_MEMBER_REMOVE" {
-		g.AddMember(m)
-	}
-	c.cache.Guilds[idx] = g
-}
-
-
 func (c Discord) GuildBans(guildID string) (resp []User, err error) {
 	resp, err = make([]User, 0), c.Get(fmt.Sprintf(GuildBansURL, guildID), &resp)
 	if err == nil {
@@ -372,10 +307,6 @@ func (c Discord) GuildIntegrations(guildID string) (resp []Integration, err erro
 	return
 }
 
-func (c *Discord) GuildBanParseWS(event string, b WSBan) {
-	//for now do nothing
-}
-
 type roles []Role
 func (r roles) FindIdxID(ID string) (int, error) {
 	for idx, ele := range r {
@@ -384,40 +315,4 @@ func (r roles) FindIdxID(ID string) (int, error) {
 		}
 	}
 	return -1, IDNotFoundError(ID)
-}
-func (c *Discord) AddGuildRole(gIdx int, r Role) {
-	guild := c.cache.Guilds[gIdx]
-	guild.Roles = append(guild.Roles, r)
-	c.cache.Guilds[gIdx] = guild
-}
-func (c *Discord) RemGuildRoleIdx(gIdx, idx int) {
-	guild := c.cache.Guilds[gIdx]
-	if idx == len(guild.Roles)-1 {
-		guild.Roles = guild.Roles[:idx]
-	} else {
-		guild.Roles = append(guild.Roles[:idx], guild.Roles[idx+1:]...)
-	}
-	c.cache.Guilds[gIdx] = guild
-}
-func (c *Discord) GuildRoleParseWS(event string, r WSRole) {
-	//update guild roles
-	//delete only gets role ID
-	gIdx, err := guilds(c.cache.Guilds).FindIdxID(r.GetGuildID())
-	if err != nil {
-		fmt.Println("invalid guild:", err)
-		return
-	}
-	g := c.cache.Guilds[gIdx]
-	rIdx, err := roles(g.Roles).FindIdxID(r.GetRoleID())
-	if err != nil {
-		fmt.Println("invalid guild:", err)
-		return
-	}
-	if event != "GUILD_ROLE_CREATE" && err == nil {
-		c.RemGuildRoleIdx(gIdx, rIdx)
-	}
-	if event != "GUILD_ROLE_DELETE" {
-		c.AddGuildRole(gIdx, r.GetRole())
-	}
-	c.cache.Guilds[gIdx] = g
 }

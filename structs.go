@@ -23,6 +23,10 @@ type Discord struct{
 	gldCache  map[string]Guild
 	usrCache  map[string]User
 	chnCache  map[string]Channel
+	priCache  map[string]Channel
+	//Version   int
+	//SessionId string
+	//ReadState []State
 	sigStop   chan int
 	sigSafe   chan int
 	sigTime   chan int

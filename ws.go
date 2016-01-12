@@ -39,20 +39,17 @@ type Game struct{
 	Name string `json:"name"`
 } 
 func (m *Game) UnmarshalJSON(raw []byte) (err error) {
-	var rawMess json.RawMessage
-	rawDat := struct{
-		Name *json.RawMessage `json:"name"`
-	}{
-		Name: &rawMess,
+	var rawDat struct{
+		Name interface{} `json:"name"`
 	}
 	err = json.Unmarshal(raw, &rawDat)
 	if err != nil {
-		return // sould be no error.  if there is, something is very wrong
+		return // should be no error.  if there is, something is very wrong
 	}
 	msg := Game{
-		Name: fmt.Sprint(rawMess), // convert to string
+		Name: fmt.Sprintf("%s", rawDat.Name), // convert to string
 	}
-	m = &msg
+	*m = msg
 	return
 }
 /* func (m *WSPres) UnmarshalJSON(raw []byte) (err error) {
@@ -190,10 +187,20 @@ func (m *WSMsg) UnmarshalJSON(raw []byte) (err error) {
 		data := VOICE_STATE_UPDATE{}
 		err = json.Unmarshal(rawData, &data)
 		msg.Data = data
+	case "":
+		switch msg.Op {
+		case 7:
+			msg.Type = "GATEWAY_REDIRECT"
+			data := GATEWAY_REDIRECT{}
+			err = json.Unmarshal(rawData, &data)
+			msg.Data = data
+		default:
+			fmt.Printf("unknown opcode: %v\n", msg.Op)
+		}
 	default:
 		fmt.Printf("unknown message type: %q\n", msg.Type)
 	}
-	if msg.Type != "READY" {
+	if wsdebug && msg.Type != "READY" {
 		tmp := msg
 		if _, ok := msg.Data.(PRESENCE_UPDATE); ok {
 			tmp.Data = fmt.Sprintf("%s", msg.Data)
@@ -367,6 +374,9 @@ type INIT struct{ //op 2
 	Compress    bool        `json:"compress,omitempty"`
 }
 type Heartbeat time.Time //op 1
+type GATEWAY_REDIRECT struct{ //op 7
+	URL string
+}
 /*
 {
         "op": 2,
@@ -427,8 +437,10 @@ func wsSend(con *websocket.Conn, msgSend chan WSMsg, done, readDone, stopWS chan
 				nextMsg.Seq = seq
 				seq++
 				fmt.Println("wsSend: sending msg", nextMsg.Type)
-				j, _ := json.Marshal(nextMsg)
-				fmt.Printf("wsSend: msg sent: `%s`\n", j)
+				if wsdebug {
+					j, _ := json.Marshal(nextMsg)
+					fmt.Printf("wsSend: msg sent: `%s`\n", j)
+				}
 				if err := con.WriteJSON(&nextMsg); err != nil {
 					fmt.Println("wsSend:",err)
 				}
@@ -455,7 +467,9 @@ func wsRead(con *websocket.Conn, msgRead chan WSMsg, done chan int) {
 		}
 		//fmt.Println("Read from conn")
 		//err = json.Unmarshal(msg, &nextMsg)
-		fmt.Printf("wsRead: Read %T from conn\n", nextMsg.Data)
+		if wsdebug {
+			fmt.Printf("wsRead: Read %T from conn\n", nextMsg.Data)
+		}
 		nextMsg.time = time.Now()
 		msgRead <- nextMsg
 	}
@@ -472,7 +486,7 @@ func wsSendBeat(con *websocket.Conn, now time.Time) {
 	fmt.Printf("beat: %s\n", j)
 }
 
-func wsHeartbeat(con *websocket.Conn, msInterval uint64) {
+func wsHeartbeat(con *websocket.Conn, msInterval uint64, stop chan int) {
 	//send a heartbeat message now, and every msInterval mlliseconds after
 	//don't use the msgSend channel because these MUST be sent at he requested time,
 	//no matter how many messages are in the queue
@@ -486,23 +500,18 @@ func wsHeartbeat(con *websocket.Conn, msInterval uint64) {
 	
 	wsSendBeat(con, time.Now()) //send a beat immediately
 	for now := range t.C {
-		wsSendBeat(con, now) //send a beat every tick
-		fmt.Println("Tick:", now)
+		select {
+		case <-stop:
+			t.Stop()
+			fmt.Println("Ticker stopped!")
+			return
+		default:
+			wsSendBeat(con, now) //send a beat every tick
+			fmt.Println("Tick:", now)
+		}
 	}
 }
 
-func (c *Discord) wsFillCaches(ws READY) {
-	for _, guild := range ws.Guilds {
-		c.gldCache[guild.ID] = guild
-		for _, member := range guild.Members {
-			//TODO: member-guild link
-			c.usrCache[member.User.ID] = member.User
-		}
-		for _, channel := range guild.Channels {
-			c.chnCache[channel.ID] = channel
-		}
-	}
-}
 
 type Callback func(c Discord, event string, data interface{})
 
@@ -556,7 +565,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				totalDur := time.Duration(parsed.HeartbeatInterval) * time.Millisecond
 				//HBstartTimer := time.AfterFunc(totalDur-time.Since(start), func() {
 				time.AfterFunc(totalDur-time.Since(start), func() {
-					wsHeartbeat(con, parsed.HeartbeatInterval)
+					wsHeartbeat(con, parsed.HeartbeatInterval, c.sigStop)
 				})
 				//fill arrays
 				fmt.Println("filling cache...")
@@ -686,7 +695,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 						
 					}
 				} else {
-					fmt.Printf("Expected json.RawMessage, got %T\n", msg.Data)
+					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					fmt.Println("Ignoring...")
 				}
 			default:
@@ -706,6 +715,29 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 			
 			call := *CB
 			call(*c, msg.Type, msg.Data)
+		case 7:
+			close(c.sigStop)
+			<-sendDone
+			<-readDone
+			//savfe to exit, but we restart connection
+			dialer := websocket.Dialer{}
+			conNew, resp, err := dialer.Dial(msg.Data.(GATEWAY_REDIRECT).URL, nil)
+			defer conNew.Close()
+			if err != nil {
+				fmt.Printf("resp:\n%#v\n", resp)
+				return
+			}
+			con = conNew // replace current connection
+			c.sigStop = make(chan int) //remake
+			c.WSInit(con, msgSend)//ensure this is FIRST
+			fmt.Println("init resent")
+			readDone = make(chan int) //remake
+			sendDone = make(chan int) //remake
+			fmt.Println("restarting sender")
+			go wsRead(con, msgRead, readDone)
+			fmt.Println("restarting reader")
+			go wsSend(con, msgSend, sendDone, readDone, c.sigStop)
+			
 		default:
 			fmt.Printf("unexpected op '%v':\n%#v\n\n", msg.Op, msg.Data)
 		}
@@ -717,12 +749,13 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 	
 	fmt.Println("closing safe/exit")
 	close(c.sigSafe)
-	select { // used to lose sigtime if not closed
+	select { // used to close sigtime if not closed
 	case <-c.sigTime: //dont close if closed
 	default: //close if not closed
 		close(c.sigTime)
 	}
 	fmt.Println("all finished, exiting process")
+	return
 }
 func (c *Discord) wsUpdatePres2(rep PRESENCE_UPDATE) (p WSPres, err error) {
 	need := struct{
@@ -752,13 +785,13 @@ func (c *Discord) wsUpdatePres2(rep PRESENCE_UPDATE) (p WSPres, err error) {
 		g.Presences = append(g.Presences, WSPres{})
 	}
 	p = g.Presences[pres]
-	if debug {
+	if wsdebug {
 		fmt.Printf("\t\told:\n\t\t%#v\n", p)
 	}
 	err = json.Unmarshal(raw, &p)
 	g.Presences[pres] = p
 	c.cache.Guilds[guild] = g
-	if debug {
+	if wsdebug {
 		fmt.Printf("\t\tnew:\n\t\t%#v\n\n", c.cache.Guilds[guild].Presences[pres])
 	}
 	return

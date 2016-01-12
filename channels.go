@@ -169,37 +169,3 @@ func (c Discord) ChanInvites(chanID string) (resp []Invite, err error) {
 	fmt.Println("got chan invites!")
 	return
 }
-
-func (c *Discord) AddChan(gIdx int, ch Channel) {
-	guild := c.cache.Guilds[gIdx]
-	guild.Channels = append(guild.Channels, ch)
-	c.cache.Guilds[gIdx] = guild
-}
-func (c *Discord) RemChanIdx(gIdx, idx int) {
-	guild := c.cache.Guilds[gIdx]
-	if idx == len(guild.Channels)-1 {
-		guild.Channels = guild.Channels[:idx]
-	} else {
-		guild.Channels = append(guild.Channels[:idx], guild.Channels[idx+1:]...)
-	}
-	c.cache.Guilds[gIdx] = guild
-}
-
-
-func (c *Discord) ChannelParseWS(event string, ch Channel) {
-	gIdx, err := guilds(c.cache.Guilds).FindIdxID(ch.GuildID)
-	if err != nil {
-		fmt.Println("chan parse err:", err)
-		return
-	}
-	cIdx, err := _chan(c.cache.Guilds[gIdx].Channels).FindIdxID(ch.ID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if event != "CHANNEL_CREATE" && err == nil {
-		c.RemChanIdx(gIdx, cIdx)
-	}
-	if event != "CHANNEL_DELETE" {
-		c.AddChan(gIdx, ch)
-	}
-}
