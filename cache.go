@@ -2,51 +2,186 @@ package discord
 
 import "fmt"
 
-func (c Discord) UserCache(userID string) User {
-	return c.usrCache[userID]
+/* type DiscordCache interface{
+	Ele(Discord, string, interface{}) error
+	SetEle(Discord, interface{}) error
+	FindKey(Discord, string) (string, error)
 }
-func (c Discord) MessageCache(msgID string) Message {
-	return c.msgCache[msgID]
+
+type UserCache Discord
+
+func (c UserCache) Ele(userID string, val interface{}) (err error) {
+	if user, ok := val.(*User); !ok {
+		return NotPointerErr("element must be type *User")
+	}
+	*user = c.usrCache[userID]
+	return
 }
-func (c Discord) GuildCache(guildID string) Guild {
-	return c.gldCache[guildID]
+func (u UserCache) SetEle(val interface{}) (err error) {
+	if id, ok := val.(User); !ok {
+		return PointerErr("element must be type User")
+	}
+	c.usrCache[user.ID] = user
+	return
 }
-func (c Discord) ChanCache(chanID string) Channel {
-	return c.chnCache[chanID]
+func (u UserCache) FindKey(name string) (ret string, err error) {
+	err = NameNotFoundError(name)
+	for key, val := range c.usrCache {
+		if val.Name == name {
+			ret, err = key, nil
+		}
+	}
+	return
+} */
+func (c Discord) GuildCacheGuilds() (ret []Guild) {
+	for _, val := range c.gldCache {
+		ret = append(ret, val)
+	}
+	return
+}
+
+func (c Discord) UserCache(userID string) (ret User, err error) {
+	var ok bool
+	if ret, ok = c.usrCache[userID]; !ok {
+		err = IDNotFoundError(userID)
+	}
+	return
+}
+func (c Discord) MessageCache(msgID string) (ret Message, err error) {
+	var ok bool
+	if ret, ok = c.msgCache[msgID]; !ok {
+		err = IDNotFoundError(msgID)
+	}
+	return
+}
+func (c Discord) GuildCache(guildID string) (ret Guild, err error) {
+	var ok bool
+	if ret, ok = c.gldCache[guildID]; !ok {
+		err = IDNotFoundError(guildID)
+	}
+	return
+}
+func (c Discord) ChanCache(chanID string) (ret Channel, err error) {
+	var ok bool
+	if ret, ok = c.chnCache[chanID]; !ok {
+		err = IDNotFoundError(chanID)
+	}
+	return
+}
+func (c Discord) PrivChanCache(userID string) (ret Channel, err error) {
+	var ok bool
+	if ret, ok = c.priCache[userID]; !ok {
+		err = IDNotFoundError(userID)
+	}
+	return
+}
+
+func (c Discord) SetUserCache(u User) {
+	c.usrCache[u.ID] = u
+}
+func (c Discord) SetMessageCache(m Message) {
+	c.msgCache[m.ID] = m
+}
+func (c Discord) SetGuildCache(g Guild) {
+	c.gldCache[g.ID] = g
+}
+func (c Discord) SetChanCache(ch Channel) {
+	c.chnCache[ch.ID] = ch
+}
+func (c Discord) SetPrivChanCache(ch Channel) {
+	c.priCache[ch.Recipient.ID] = ch
+}
+
+func (c Discord) DelUserCache(u User) {
+	delete(c.usrCache, u.ID)
+}
+func (c Discord) DelMessageCache(m Message) {
+	delete(c.msgCache, m.ID)
+}
+func (c Discord) DelGuildCache(g Guild) {
+	delete(c.gldCache, g.ID)
+}
+func (c Discord) DelChanCache(ch Channel) {
+	delete(c.chnCache, ch.ID)
+}
+func (c Discord) DelPrivChanCache(ch Channel) {
+	delete(c.priCache, ch.Recipient.ID)
+}
+
+func (c Discord) FindNameUserCache(name string) (ret User, err error) {
+	err = NameNotFoundError(name)
+	for _, val := range c.usrCache {
+		if val.Username == name {
+			ret, err = val, nil
+		}
+	}
+	return
+}
+/* func (c Discord) FindNameMessageCache(name string) (ret Message, err error) {
+	err = NameNotFoundError(name)
+	for key, val := range c.msgCache {
+		if val.Name == name {
+			ret, err = val, nil
+		}
+	}
+	return
+} */
+func (c Discord) FindNameGuildCache(name string) (ret Guild, err error) {
+	err = NameNotFoundError(name)
+	for _, val := range c.gldCache {
+		if val.Name == name {
+			ret, err = val, nil
+		}
+	}
+	return
+}
+func (c Discord) FindNameChanCache(name string) (ret Channel, err error) {
+	err = NameNotFoundError(name)
+	for _, val := range c.chnCache {
+		if val.Name == name {
+			ret, err = val, nil
+		}
+	}
+	return
+}
+func (c Discord) FindNamePrivChanCache(name string) (ret Channel, err error) {
+	err = NameNotFoundError(name)
+	for _, val := range c.priCache {
+		if val.Name == name {
+			ret, err = val, nil
+		}
+	}
+	return
 }
 
 //channels
-func (c *Discord) AddChan(gIdx int, ch Channel) {
-	guild := c.cache.Guilds[gIdx]
+func (c *Discord) AddChan(ch Channel) {
+	//dont update guild channel list.  thats ready only
+	/* g := c.cache.Guilds[gIdx]
 	guild.Channels = append(guild.Channels, ch)
-	c.cache.Guilds[gIdx] = guild
+	c.cache.Guilds[gIdx] = guild */
+	//g.Channels = append(g.Channels, ch)
+	//c.SetGuildCache(g)
+	c.SetChanCache(ch)
 }
-func (c *Discord) RemChanIdx(gIdx, idx int) {
-	guild := c.cache.Guilds[gIdx]
-	if idx == len(guild.Channels)-1 {
-		guild.Channels = guild.Channels[:idx]
+func (c *Discord) RemChan(ch Channel) {
+	//guild := c.cache.Guilds[gIdx]
+	//dont update guild channel list.  thats ready only
+	/* if idx == len(g.Channels)-1 {
+		g.Channels = g.Channels[:idx]
 	} else {
-		guild.Channels = append(guild.Channels[:idx], guild.Channels[idx+1:]...)
-	}
-	c.cache.Guilds[gIdx] = guild
+		g.Channels = append(g.Channels[:idx], g.Channels[idx+1:]...)
+	} */
+	c.DelChanCache(ch)
 }
 
 
 func (c *Discord) ChannelParseWS(event string, ch Channel) {
-	gIdx, err := guilds(c.cache.Guilds).FindIdxID(ch.GuildID)
-	if err != nil {
-		fmt.Println("chan parse err:", err)
-		return
-	}
-	cIdx, err := _chan(c.cache.Guilds[gIdx].Channels).FindIdxID(ch.ID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if event != "CHANNEL_CREATE" && err == nil {
-		c.RemChanIdx(gIdx, cIdx)
-	}
-	if event != "CHANNEL_DELETE" {
-		c.AddChan(gIdx, ch)
+	switch event {
+	case "CHANNEL_CREATE","CHANNEL_UPDATE":
+		c.AddChan(ch)
+	case "CHANNEL_DELETE":
+		c.RemChan(ch)
 	}
 }
 

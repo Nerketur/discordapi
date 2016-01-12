@@ -7,7 +7,7 @@ import (
 type guilds []Guild
 
 func (c Discord) Guild(name string) (Guild, error) {
-	return guilds(c.cache.Guilds).Find(name)
+	return c.FindNameGuildCache(name)
 }
 func (c Discord) GuildID(name string) (string, error) {
 	resp, err := c.Guild(name)
@@ -46,12 +46,12 @@ func (c guilds) FindIdxID(ID string) (int, error) {
 
 //now use cache instead
 func (c Discord) GuildMembers(guildID string) (resp []Member, err error) {
-	var idx int // to prevent shadowing
-	idx, err = guilds(c.cache.Guilds).FindIdxID(guildID)
+	var g Guild // to prevent shadowing
+	g, err = c.GuildCache(guildID)
+	resp = g.Members
 	if err != nil {
 		return
 	}
-	resp = c.cache.Guilds[idx].Members
 	
 	fmt.Println("Got members successfully!")
 	return
@@ -85,14 +85,10 @@ func (c Discord) GuildChanCreate(guildID, name, kind string) (resp Channel, err 
 }
 
 func (c Discord) Guilds() []Guild {
-	if c.cache == nil {
-		fmt.Println("\t\tguilds empty!")
-		return make([]Guild, 0)
-	}
-	return c.cache.Guilds
+	return c.GuildCacheGuilds()
 }
 
-func (c Discord) GetMyGuilds() (resp []Guild, err error) {
+func (c Discord) GuildsRest() (resp []Guild, err error) {
 	resp, err = make([]Guild, 0), c.Get(MyGuildsURL, &resp)
 	if err == nil {
 		fmt.Println("Got guilds successfully!")

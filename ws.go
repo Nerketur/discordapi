@@ -572,10 +572,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				c.cache = &parsed
 				c.Me = &parsed.User
 				go c.wsFillCaches(parsed)
-				if len(c.cache.Guilds) == 0 {
-					panic("cache should not be empty! -- just after assign --")
-				}
-				fmt.Println("cache filled!")
+				fmt.Println("cache filling..., still starting")
 
 			//TODO: add code differentiating between unavailable guild
 			// messages and normal messages
@@ -699,13 +696,13 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 					fmt.Println("Ignoring...")
 				}
 			default:
-				if debug {
+				/* if debug {
 					if c.cache == nil {
 						panic("cache should not be nil! -- default case --")
 					} else if len(c.cache.Guilds) == 0 {
 						panic("guild cache should not be empty! -- default case --")
 					}
-				}
+				} */ //TODO: think of better check for cache
 				if ok {
 					fmt.Printf("%s\n(needs adding)\n\n", d)
 				} else {
@@ -771,12 +768,11 @@ func (c *Discord) wsUpdatePres2(rep PRESENCE_UPDATE) (p WSPres, err error) {
 	if err = json.Unmarshal(raw, &need); err != nil {
 		return
 	}
-	guild, err := guilds(c.cache.Guilds).FindIdxID(need.GuildID)
+	g, err := c.GuildCache(need.GuildID)
 	if err != nil {
 		fmt.Println("pres update guildID err:", err)
 		return
 	}
-	g := c.cache.Guilds[guild]
 	//after this point we update anyway, even if info is missing
 	pres, err = _pres(g.Presences).FindIdx(need.User.ID)
 	if err != nil {
@@ -790,9 +786,9 @@ func (c *Discord) wsUpdatePres2(rep PRESENCE_UPDATE) (p WSPres, err error) {
 	}
 	err = json.Unmarshal(raw, &p)
 	g.Presences[pres] = p
-	c.cache.Guilds[guild] = g
+	c.SetGuildCache(g)
 	if wsdebug {
-		fmt.Printf("\t\tnew:\n\t\t%#v\n\n", c.cache.Guilds[guild].Presences[pres])
+		fmt.Printf("\t\tnew:\n\t\t%#v\n\n", c.gldCache[g.ID].Presences[pres])
 	}
 	return
 }

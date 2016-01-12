@@ -4,13 +4,13 @@ import (
 	"fmt"
 )
 
-type _privchan []Channel
+//type _cache map[string]interface{}
 
 func (c Discord) PrivateChan(name string) (Channel, error) {
-	return _privchan(c.cache.PrivateChannels).Find(name)
+	return c.FindNamePrivChanCache(name)
 }
 func (c Discord) PrivateChanFromID(ID string) (Channel, error) {
-	return _privchan(c.cache.PrivateChannels).FindID(ID)
+	return c.PrivChanCache(ID)
 }
 
 func (c Discord) PrivateChanID(name string) (string, error) {
@@ -18,7 +18,7 @@ func (c Discord) PrivateChanID(name string) (string, error) {
 	return resp.ID, err
 }
 
-func (c _privchan) Find(name string) (ele Channel, err error) {
+/*func (c _privchan) Find(name string) (ele Channel, err error) {
 	for _, ele = range c {
 		if ele.Recipient.Username == name {
 			return
@@ -35,9 +35,9 @@ func (c _privchan) FindID(ID string) (ele Channel, err error) {
 	}
 	err = IDNotFoundError(ID)
 	return
-}
+}*/
 
-func (c Discord) GetMyPrivateChans() (resp []Channel, err error) {
+func (c Discord) PrivateChansRest() (resp []Channel, err error) {
 	resp = make([]Channel, 0)
 	if err = c.Get(MyChansURL, &resp); err != nil {
 		return
@@ -60,9 +60,9 @@ func (c *Discord) CreatePrivateChan(userID string) (resp Channel, err error) {
 		return
 	}
 	
-	pcs := _chan(c.cache.PrivateChannels)
+	//pcs := _chan(c.PrivChanCache)
 	//pcs.AddChan(resp) //only needed if no websocket
-	fmt.Printf("%#v\n", pcs)
+	//fmt.Printf("%#v\n", pcs)
 	fmt.Println("created (opened) private channel successfully!")
 	return
 }
@@ -97,11 +97,14 @@ func (c Discord) DeletePrivateChan(userID string) error { //API also returns del
 }
 
 func (c Discord) UserPres(guildID, userID string) (p WSPres, err error) {
-	gIdx, err := guilds(c.cache.Guilds).FindIdxID(guildID)
+/* 	gIdx, err := guilds(c.cache.Guilds).FindIdxID(guildID)
+	if err != nil {
+		return p, err
+	} */
+	g, err := c.GuildCache(guildID)
 	if err != nil {
 		return p, err
 	}
-	g := c.cache.Guilds[gIdx]
 	pIdx, err := _pres(g.Presences).FindIdx(userID)
 	if err != nil {
 		return p, err
