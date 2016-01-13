@@ -569,7 +569,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				})
 				//fill arrays
 				fmt.Println("filling cache...")
-				c.cache = &parsed
+				//c.cache = &parsed
 				c.Me = &parsed.User
 				go c.wsFillCaches(parsed)
 				fmt.Println("cache filling..., still starting")

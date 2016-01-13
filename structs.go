@@ -17,7 +17,7 @@ type Discord struct{
 	Client    *http.Client
 	Token     string
 	LoggingIn bool
-	cache     *READY
+	//cache     *READY
 	Me        *User
 	msgCache  map[string]Message
 	gldCache  map[string]Guild
@@ -32,10 +32,10 @@ type Discord struct{
 	sigTime   chan int
 }
 
-func (c Discord) Cache() (*READY) {
+/* func (c Discord) Cache() (*READY) {
 	return c.cache
 }
-
+ */
 /////////////////////////////
 
 //Only reason not to remove this is its used evey time we create a message.

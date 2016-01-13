@@ -157,24 +157,12 @@ func (c Discord) FindNamePrivChanCache(name string) (ret Channel, err error) {
 //channels
 func (c *Discord) AddChan(ch Channel) {
 	//dont update guild channel list.  thats ready only
-	/* g := c.cache.Guilds[gIdx]
-	guild.Channels = append(guild.Channels, ch)
-	c.cache.Guilds[gIdx] = guild */
-	//g.Channels = append(g.Channels, ch)
-	//c.SetGuildCache(g)
 	c.SetChanCache(ch)
 }
 func (c *Discord) RemChan(ch Channel) {
-	//guild := c.cache.Guilds[gIdx]
 	//dont update guild channel list.  thats ready only
-	/* if idx == len(g.Channels)-1 {
-		g.Channels = g.Channels[:idx]
-	} else {
-		g.Channels = append(g.Channels[:idx], g.Channels[idx+1:]...)
-	} */
 	c.DelChanCache(ch)
 }
-
 
 func (c *Discord) ChannelParseWS(event string, ch Channel) {
 	switch event {
@@ -184,63 +172,59 @@ func (c *Discord) ChannelParseWS(event string, ch Channel) {
 		c.RemChan(ch)
 	}
 }
-
-//private chan
-func (c *_chan) AddChan(ch Channel) {
-	*c = append(*c, ch)
+//private channels
+func (c *Discord) AddPrivChan(ch Channel) {
+	c.SetPrivChanCache(ch)
 }
-func (ch *_chan) RemChanIdx(idx int) {
-	c := *ch
-	if idx == len(c)-1 {
-		c = c[:idx]
-	} else {
-		c = append(c[:idx], c[idx+1:]...)
-	}
-	*ch = c
+func (c *Discord) RemPrivChan(ch Channel) {
+	c.DelPrivChanCache(ch)
 }
 
 func (c *Discord) PrivateChannelParseWS(event string, ch Channel) {
-	chans := _chan(c.cache.PrivateChannels)
-	cIdx, err := chans.FindIdxID(ch.ID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if event != "CHANNEL_CREATE" && err == nil {
-		chans.RemChanIdx(cIdx)
-	}
-	if event != "CHANNEL_DELETE" {
-		chans.AddChan(ch)
+	switch event {
+	case "CHANNEL_CREATE","CHANNEL_UPDATE":
+		c.AddPrivChan(ch)
+	case "CHANNEL_DELETE":
+		c.RemPrivChan(ch)
 	}
 }
 
-//guild
-
+//guilds
 func (c *Discord) AddGuild(g Guild) {
-	c.cache.Guilds = append(c.cache.Guilds, g)
+	c.SetGuildCache(g)
 }
-func (c *Discord) RemGuildIdx(idx int) {
-	if idx == len(c.cache.Guilds)-1 {
-		c.cache.Guilds = c.cache.Guilds[:idx]
-	} else {
-		c.cache.Guilds = append(c.cache.Guilds[:idx], c.cache.Guilds[idx+1:]...)
-	}
+func (c *Discord) RemGuild(g Guild) {
+	c.DelGuildCache(g)
 }
 
 func (c *Discord) GuildParseWS(event string, g Guild) {
-	if g.Unavailable != nil {
-		return // ignore these messages for now
-	}
-	oldIdx, err := guilds(c.cache.Guilds).FindIdxID(g.ID)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if event != "GUILD_CREATE" && err == nil {
-		c.RemGuildIdx(oldIdx)
-	}
-	if event != "GUILD_DELETE" {
+	switch event {
+	case "GUILD_CREATE","GUILD_UPDATE":
 		c.AddGuild(g)
+	case "GUILD_DELETE":
+		c.RemGuild(g)
 	}
 }
+//////////////////////////////////////////////////
+
+//TODO: Figure out a way to have this work for members
+/* //guild members
+func (c *Discord) AddMember(m Member) {
+	c.SetMemberCache(m)
+}
+func (c *Discord) RemMember(m Member) {
+	c.DelMemberCache(m)
+}
+
+func (c *Discord) GuildMemberParseWS(event string, m Member) {
+	switch event {
+	case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE":
+		c.AddMember(m)
+	case "GUILD_MEMBER_REMOVE":
+		c.RemMember(m)
+	}
+} */
+//////////////////////////////////////////////////
 
 //guild members
 
@@ -264,8 +248,7 @@ func (g *Guild) RemMember(m Member) {
 }
 
 func (c *Discord) GuildMemberParseWS(event string, m Member) {
-	idx, err := guilds(c.cache.Guilds).FindIdxID(m.GuildID)
-	g := c.cache.Guilds[idx]
+	g, err := c.GuildCache(m.GuildID)
 	if err != nil {
 		fmt.Println("cache error:", err)
 		return
@@ -276,7 +259,7 @@ func (c *Discord) GuildMemberParseWS(event string, m Member) {
 	if event != "GUILD_MEMBER_REMOVE" {
 		g.AddMember(m)
 	}
-	c.cache.Guilds[idx] = g
+	c.SetGuildCache(g)
 }
 
 //guild bans
@@ -285,42 +268,38 @@ func (c *Discord) GuildBanParseWS(event string, b WSBan) {
 	//for now do nothing
 }
 
-//guld roles
-func (c *Discord) AddGuildRole(gIdx int, r Role) {
-	guild := c.cache.Guilds[gIdx]
-	guild.Roles = append(guild.Roles, r)
-	c.cache.Guilds[gIdx] = guild
+//guild roles
+func (g *Guild) AddRole(r Role) {
+	g.Roles = append(g.Roles, r)
 }
-func (c *Discord) RemGuildRoleIdx(gIdx, idx int) {
-	guild := c.cache.Guilds[gIdx]
-	if idx == len(guild.Roles)-1 {
-		guild.Roles = guild.Roles[:idx]
-	} else {
-		guild.Roles = append(guild.Roles[:idx], guild.Roles[idx+1:]...)
+func (g *Guild) RemRole(r Role) {
+	idx, err := roles(g.Roles).FindIdxID(r.ID)
+	if err != nil {
+		fmt.Println("remove role warning:", err)
+		return
 	}
-	c.cache.Guilds[gIdx] = guild
+
+	if idx == len(g.Roles)-1 {
+		g.Roles = g.Roles[:idx]
+	} else {
+		g.Roles = append(g.Roles[:idx], g.Roles[idx+1:]...)
+	}
 }
 func (c *Discord) GuildRoleParseWS(event string, r WSRole) {
 	//update guild roles
 	//delete only gets role ID
-	gIdx, err := guilds(c.cache.Guilds).FindIdxID(r.GetGuildID())
+	g, err := c.GuildCache(r.GetGuildID())
 	if err != nil {
 		fmt.Println("invalid guild:", err)
 		return
 	}
-	g := c.cache.Guilds[gIdx]
-	rIdx, err := roles(g.Roles).FindIdxID(r.GetRoleID())
-	if err != nil {
-		fmt.Println("invalid guild:", err)
-		return
-	}
-	if event != "GUILD_ROLE_CREATE" && err == nil {
-		c.RemGuildRoleIdx(gIdx, rIdx)
+	if event != "GUILD_ROLE_CREATE" {
+		g.RemRole(r.GetRole())
 	}
 	if event != "GUILD_ROLE_DELETE" {
-		c.AddGuildRole(gIdx, r.GetRole())
+		g.AddRole(r.GetRole())
 	}
-	c.cache.Guilds[gIdx] = g
+	c.SetGuildCache(g)
 }
 
 //WS
@@ -340,7 +319,6 @@ func (c *Discord) wsFillCaches(ws READY) {
 			c.chnCache[channel.ID] = channel
 			//fmt.Println("channel:", channel, ", guildID:", channel.GuildID)
 		}
-		
 		if debug {
 			for _, pres := range guild.Presences {
 				if pres.Game != nil {
@@ -351,4 +329,5 @@ func (c *Discord) wsFillCaches(ws READY) {
 			}
 		}
 	}
+	fmt.Println("Caches filled!")
 }
