@@ -64,6 +64,8 @@ type Member struct{
 		Discriminator string  `json:"-"` //4 digits
 		ID            string  `json:"id"`
 		Avatar        *string `json:"avatar"` // hex string (can be null)
+		
+		guildSet map[string]struct{} `json:"-"` // caching purposes
 	}
 
 func (u *User) UnmarshalJSON(raw []byte) (err error) {
@@ -180,6 +182,8 @@ type Guild struct{
 	AfkTimeout   uint64         `json:"afk_timeout"`
 	AfkChannelID *string        `json:"afk_channel_id"`
 	Unavailable  *bool          `json:"unavailable,omitempty"` // if present, state changed
+	
+	memCache     map[string]Member `json:"-"` // completely ignore this in json
 }
 	type Role struct{
 		Managed     bool   `json:"managed,omitempty"`

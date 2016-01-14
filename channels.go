@@ -7,7 +7,6 @@ import (
 type _chan []Channel
 
 func (c Discord) Chan(guildID, name string) (Channel, error) {
-	
 	chans, err := c.GuildChannels(guildID)
 	if err != nil {
 		return Channel{}, err

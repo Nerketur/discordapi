@@ -39,11 +39,36 @@ func (c Discord) GuildCacheGuilds() (ret []Guild) {
 	}
 	return
 }
+func (g Guild) GuildCacheMembers() (ret []Member) {
+	for _, val := range g.memCache {
+		ret = append(ret, val)
+	}
+	return
+}
+func (c Discord) GuildChanCache(guildID string) (ret []Channel) {
+	for _, val := range c.chnCache {
+		if val.GuildID == guildID {
+			ret = append(ret, val)
+		}
+	}
+	return
+}
 
 func (c Discord) UserCache(userID string) (ret User, err error) {
 	var ok bool
 	if ret, ok = c.usrCache[userID]; !ok {
 		err = IDNotFoundError(userID)
+	}
+	return
+}
+func (c Discord) MemberCache(userID, guildID string) (ret Member, err error) {
+	var g Guild
+	if g, err = c.GuildCache(guildID); err != nil {
+		return
+	}
+	var ok bool
+	if ret, ok = g.memCache[userID]; !ok {
+		err = IDNotFoundError(userID + " in " + guildID)
 	}
 	return
 }
@@ -58,6 +83,9 @@ func (c Discord) GuildCache(guildID string) (ret Guild, err error) {
 	var ok bool
 	if ret, ok = c.gldCache[guildID]; !ok {
 		err = IDNotFoundError(guildID)
+	} else if debug {
+		fmt.Println("id:", guildID)
+		fmt.Println("name:", c.gldCache[guildID].Name)
 	}
 	return
 }
@@ -76,79 +104,148 @@ func (c Discord) PrivChanCache(userID string) (ret Channel, err error) {
 	return
 }
 
-func (c Discord) SetUserCache(u User) {
+func (c *Discord) SetUserCache(u User) {
 	c.usrCache[u.ID] = u
 }
-func (c Discord) SetMessageCache(m Message) {
+func (c *Discord) SetMemberCaches(m Member){
+	g, err := c.GuildCache(m.GuildID)
+	
+	if err != nil {
+		//fmt.Println("error adding to member cache:", err)
+		//fmt.Println("ignoring...")
+		return
+	}
+	u, err := c.UserCache(m.User.ID)
+	if err != nil {
+		u = m.User // if user doesn't exist, use the one we have
+	}
+	mb, ok := g.memCache[m.User.ID]
+	if !ok {
+		mb = m // if member doesn't exist, use the one we have
+	}
+	u.guildSet[g.ID] = struct{}{} //save guildID to user id slice
+	c.SetUserCache(u) //replace user
+	//user is updated.  now update user in member
+	mb.User = u
+	//member is updated.  now update guild cache
+	g.memCache[mb.User.ID] = mb //save member to guild
+	c.SetGuildCache(g) //replace guild
+	//guild done, complete
+	//we have users cache to get all guild ids a user is a member of
+	//from this we go to the respective guild to get the member info
+	//said member info now contains the same user info as before
+	
+	//user   -> guilds (id) -- non ID requires pointers
+	//guild  -> members
+	//member -> user //cant get member info without user and guild
+	//               //but member itself gives that to us
+}
+func (c *Discord) SetMessageCache(m Message) {
 	c.msgCache[m.ID] = m
 }
-func (c Discord) SetGuildCache(g Guild) {
+func (c *Discord) SetGuildCache(g Guild) {
 	c.gldCache[g.ID] = g
 }
-func (c Discord) SetChanCache(ch Channel) {
+func (c *Discord) SetChanCache(ch Channel) {
 	c.chnCache[ch.ID] = ch
 }
-func (c Discord) SetPrivChanCache(ch Channel) {
+func (c *Discord) SetPrivChanCache(ch Channel) {
 	c.priCache[ch.Recipient.ID] = ch
 }
 
-func (c Discord) DelUserCache(u User) {
+func (c *Discord) DelUserCache(u User) {
 	delete(c.usrCache, u.ID)
 }
-func (c Discord) DelMessageCache(m Message) {
+func (c *Discord) DelMemberCaches(m Member) {
+	//here we do the opposite of set
+	//we first check guild
+	g, err := c.GuildCache(m.GuildID)
+	if err != nil { //ignore remove if doesn't exist
+		fmt.Println("error removing from member cache:", err)
+		fmt.Println("ignoring...")
+		return
+	}
+	u, err := c.UserCache(m.User.ID)
+	if err != nil { //ignore remove if doesnt exist
+		fmt.Println("error removing from member cache:", err)
+		fmt.Println("ignoring...")
+		return
+	}
+	m, ok := g.memCache[m.User.ID]
+	if !ok { //ignore remove if doesn't exist
+		fmt.Println("error removing from member cache:", err)
+		fmt.Println("ignoring...")
+		return
+	}
+	//we remove the guild data from our user
+	delete(u.guildSet, g.ID)
+	//we save updated user
+	c.SetUserCache(u) //replace user
+	//we delete member from guild
+	delete(g.memCache, m.User.ID)
+	//member is updated.  now update guild cache
+	c.SetGuildCache(g) //replace guild
+	
+}
+func (c *Discord) DelMessageCache(m Message) {
 	delete(c.msgCache, m.ID)
 }
-func (c Discord) DelGuildCache(g Guild) {
+func (c *Discord) DelGuildCache(g Guild) {
 	delete(c.gldCache, g.ID)
 }
-func (c Discord) DelChanCache(ch Channel) {
+func (c *Discord) DelChanCache(ch Channel) {
 	delete(c.chnCache, ch.ID)
 }
-func (c Discord) DelPrivChanCache(ch Channel) {
+func (c *Discord) DelPrivChanCache(ch Channel) {
 	delete(c.priCache, ch.Recipient.ID)
 }
 
-func (c Discord) FindNameUserCache(name string) (ret User, err error) {
+func (c Discord) FindNameUserCache(name string) (ret []User, err error) {
 	err = NameNotFoundError(name)
 	for _, val := range c.usrCache {
 		if val.Username == name {
-			ret, err = val, nil
+			ret = append(ret, val)
+			err = nil
 		}
 	}
 	return
 }
-/* func (c Discord) FindNameMessageCache(name string) (ret Message, err error) {
+/* func (c Discord) FindNameMessageCache(name string) (ret []Message, err error) {
 	err = NameNotFoundError(name)
 	for key, val := range c.msgCache {
 		if val.Name == name {
-			ret, err = val, nil
+			ret = append(ret, val)
+			err = nil
 		}
 	}
 	return
 } */
-func (c Discord) FindNameGuildCache(name string) (ret Guild, err error) {
+func (c Discord) FindNameGuildCache(name string) (ret []Guild, err error) {
 	err = NameNotFoundError(name)
 	for _, val := range c.gldCache {
 		if val.Name == name {
-			ret, err = val, nil
+			ret = append(ret, val)
+			err = nil
 		}
 	}
 	return
 }
-func (c Discord) FindNameChanCache(name string) (ret Channel, err error) {
+func (c Discord) FindNameChanCache(name string) (ret []Channel, err error) {
 	err = NameNotFoundError(name)
 	for _, val := range c.chnCache {
 		if val.Name == name {
-			ret, err = val, nil
+			ret = append(ret, val)
+			err = nil
 		}
 	}
 	return
 }
-func (c Discord) FindNamePrivChanCache(name string) (ret Channel, err error) {
+func (c Discord) FindNamePrivChanCache(name string) (ret []Channel, err error) {
 	err = NameNotFoundError(name)
 	for _, val := range c.priCache {
 		if val.Name == name {
-			ret, err = val, nil
+			ret = append(ret, val)
+			err = nil
 		}
 	}
 	return
@@ -192,74 +289,60 @@ func (c *Discord) PrivateChannelParseWS(event string, ch Channel) {
 //guilds
 func (c *Discord) AddGuild(g Guild) {
 	c.SetGuildCache(g)
+	for _, ch := range g.Channels {
+		ch.GuildID = g.ID //needed to let our cache lookup work
+		c.SetChanCache(ch)
+	}
+	for _, m := range g.Members {
+		u := m.User
+		u.guildSet = make(map[string]struct{})
+		c.SetUserCache(u)
+		c.SetMemberCaches(m)
+	}
+	fmt.Printf("%#v", g.memCache)
 }
 func (c *Discord) RemGuild(g Guild) {
+	for _, m := range g.Members {
+		c.DelMemberCaches(m)
+	}
+	for _, ch := range g.Channels {
+		c.DelChanCache(ch)
+	}
+
 	c.DelGuildCache(g)
 }
 
 func (c *Discord) GuildParseWS(event string, g Guild) {
 	switch event {
-	case "GUILD_CREATE","GUILD_UPDATE":
+	case "GUILD_CREATE":
+		//init the map here
+		g.memCache = make(map[string]Member)
+		fallthrough
+	case "GUILD_UPDATE":
 		c.AddGuild(g)
 	case "GUILD_DELETE":
 		c.RemGuild(g)
 	}
 }
-//////////////////////////////////////////////////
 
-//TODO: Figure out a way to have this work for members
-/* //guild members
+//guild members
 func (c *Discord) AddMember(m Member) {
-	c.SetMemberCache(m)
+	c.SetMemberCaches(m)
 }
 func (c *Discord) RemMember(m Member) {
-	c.DelMemberCache(m)
+	c.DelMemberCaches(m)
 }
 
 func (c *Discord) GuildMemberParseWS(event string, m Member) {
 	switch event {
-	case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE":
+	case "GUILD_MEMBER_ADD":
+		m.User.guildSet = make(map[string]struct{})
+		fallthrough
+	case "GUILD_MEMBER_UPDATE":
 		c.AddMember(m)
 	case "GUILD_MEMBER_REMOVE":
 		c.RemMember(m)
 	}
-} */
-//////////////////////////////////////////////////
-
-//guild members
-
-func (g *Guild) AddMember(m Member) {
-	g.Members = append(g.Members, m)
-}
-func (g *Guild) RemMemberIdx(idx int) {
-	if idx == len(g.Members)-1 {
-		g.Members = g.Members[:idx]
-	} else {
-		g.Members = append(g.Members[:idx], g.Members[idx+1:]...)
-	}
-}
-func (g *Guild) RemMember(m Member) {
-	idx, err := members(g.Members).FindIdxID(m.User.ID)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	g.RemMemberIdx(idx)
-}
-
-func (c *Discord) GuildMemberParseWS(event string, m Member) {
-	g, err := c.GuildCache(m.GuildID)
-	if err != nil {
-		fmt.Println("cache error:", err)
-		return
-	}
-	if event != "GUILD_MEMBER_ADD" {
-		g.RemMember(m)
-	}
-	if event != "GUILD_MEMBER_REMOVE" {
-		g.AddMember(m)
-	}
-	c.SetGuildCache(g)
 }
 
 //guild bans
@@ -305,19 +388,30 @@ func (c *Discord) GuildRoleParseWS(event string, r WSRole) {
 //WS
 
 func (c *Discord) wsFillCaches(ws READY) {
+	//c.Version   = ws.Version
+	//c.SessionId = ws.SessionId
+	//c.ReadState = ws.ReadState
 	for _, channel := range ws.PrivateChannels {
-		c.priCache[channel.Recipient.ID] = channel
+		c.SetPrivChanCache(channel)
 	}
 	for _, guild := range ws.Guilds {
-		c.gldCache[guild.ID] = guild
-		for _, member := range guild.Members {
-			//TODO: member-guild link
-			c.usrCache[member.User.ID] = member.User
+		//if debug {
+			fmt.Println("guild:", guild.Name)
+			fmt.Println("   id:", guild.ID)
+		//}
+		guild.memCache = make(map[string]Member) //make here to avoid errors
+		c.SetGuildCache(guild)
+		
+		for _, ch := range guild.Channels {
+			ch.GuildID = guild.ID //needed to let our cache lookup work
+			c.SetChanCache(ch)
 		}
-		for _, channel := range guild.Channels {
-			channel.GuildID = guild.ID
-			c.chnCache[channel.ID] = channel
-			//fmt.Println("channel:", channel, ", guildID:", channel.GuildID)
+		for _, m := range guild.Members {
+			u := m.User
+			m.GuildID = guild.ID //fixes lookup issues
+			u.guildSet = make(map[string]struct{})
+			c.SetUserCache(u)
+			c.SetMemberCaches(m)
 		}
 		if debug {
 			for _, pres := range guild.Presences {
@@ -328,6 +422,14 @@ func (c *Discord) wsFillCaches(ws READY) {
 				}
 			}
 		}
+		g, err := c.GuildCache(guild.ID)
+		if err != nil {
+			fmt.Println("Error!")
+		}
+		//if debug {
+			fmt.Printf("%v\t%v\n", len(g.memCache), len(guild.Members))
+		//}
 	}
 	fmt.Println("Caches filled!")
+	//c.Stop()
 }

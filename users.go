@@ -6,8 +6,13 @@ import (
 
 //type _cache map[string]interface{}
 
-func (c Discord) PrivateChan(name string) (Channel, error) {
-	return c.FindNamePrivChanCache(name)
+func (c Discord) PrivateChan(name string) (ret Channel, err error) {
+	var chs []Channel
+	chs, err = c.FindNamePrivChanCache(name)
+	if err == nil {
+		ret = chs[0]
+	}
+	return 
 }
 func (c Discord) PrivateChanFromID(ID string) (Channel, error) {
 	return c.PrivChanCache(ID)

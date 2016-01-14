@@ -571,11 +571,11 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				fmt.Println("filling cache...")
 				//c.cache = &parsed
 				c.Me = &parsed.User
-				go c.wsFillCaches(parsed)
+				//go c.wsFillCaches(parsed)
+				c.wsFillCaches(parsed)
 				fmt.Println("cache filling..., still starting")
 
-			//TODO: add code differentiating between unavailable guild
-			// messages and normal messages
+			//TODO: add code differentiating between unavailable msgs vs normal
 			// (make new events)
 			case "GUILD_CREATE","GUILD_UPDATE","GUILD_DELETE":
 				//parse guild stuff

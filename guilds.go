@@ -6,8 +6,13 @@ import (
 
 type guilds []Guild
 
-func (c Discord) Guild(name string) (Guild, error) {
-	return c.FindNameGuildCache(name)
+func (c Discord) Guild(name string) (g Guild, err error) {
+	var gs []Guild
+	gs, err = c.FindNameGuildCache(name)
+	if err == nil {
+		g = gs[0]
+	}
+	return
 }
 func (c Discord) GuildID(name string) (string, error) {
 	resp, err := c.Guild(name)
@@ -48,21 +53,28 @@ func (c guilds) FindIdxID(ID string) (int, error) {
 func (c Discord) GuildMembers(guildID string) (resp []Member, err error) {
 	var g Guild // to prevent shadowing
 	g, err = c.GuildCache(guildID)
-	resp = g.Members
 	if err != nil {
 		return
 	}
-	
+	resp = g.GuildCacheMembers()
 	fmt.Println("Got members successfully!")
 	return
 }
 
-func (c Discord) GuildChannels(guildID string) (resp []Channel, err error) {
+func (c Discord) GuildChannels(guildID string) (ret []Channel, err error) {
+	ret = c.GuildChanCache(guildID)
+	if len(ret) == 0 {
+		ret, err = c.GuildChannelsRest(guildID)
+	}
+	return
+}
+func (c Discord) GuildChannelsRest(guildID string) (resp []Channel, err error) {
 	resp = make([]Channel, 0)
 	err = c.Get(fmt.Sprintf(GuildChansURL, guildID), &resp)
 	if err == nil {
 		fmt.Println("Got channels successfully!")
 	}
+	//TODO: possibly update channel array
 	return
 }
 
