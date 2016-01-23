@@ -53,6 +53,12 @@ func (c Discord) GuildChanCache(guildID string) (ret []Channel) {
 	}
 	return
 }
+func (c Discord) ChanCacheAll() (ret []Channel) {
+	for _, val := range c.chnCache {
+		ret = append(ret, val)
+	}
+	return
+}
 
 func (c Discord) UserCache(userID string) (ret User, err error) {
 	var ok bool

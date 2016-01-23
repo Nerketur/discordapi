@@ -288,7 +288,7 @@ x means not planning to implement
     MESSAGE_UPDATE (embeds only)
     +PRESENCE_UPDATE
     +READY
-    xTYPING_START //pointless for bots?
+    =TYPING_START //pointless for bots?
     USER_SETTINGS_UPDATE //unsure if this is really needed
     VOICE_STATE_UPDATE
 	xMESSAGE_ACK //unimportant,clients only
@@ -576,6 +576,26 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 				fmt.Println("cache filling..., still starting")
 
 			//TODO: add code differentiating between unavailable msgs vs normal
+			/*
+				Cases where "unavailable": true
+				- READY
+					- You will get a GUILD_CREATE event in the future with unavailable: false
+				- GUILD_CREATE
+					- You will get another one later with the actual data with unavailable: false.
+					- You get this usually by accepting invites.
+				- GUILD_DELETE
+					- The guild just became unavailable.
+
+
+				Cases where "unavailable": false
+
+				- GUILD_CREATE
+					- Used to receive data of a recently unavailable guild.
+
+
+				Note that the "unavailable" key won't be always be available. If it is available then it means that the state changed. So
+				if it isn't false or true then it means it's not there.
+			*/
 			// (make new events)
 			case "GUILD_CREATE","GUILD_UPDATE","GUILD_DELETE":
 				//parse guild stuff
@@ -594,12 +614,6 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 					fmt.Printf("Expected discord.%s, got %T\n", msg.Type, msg.Data)
 					close(c.sigStop)
 					continue
-				}
-				//guild cache needs updating
-				if msg.Type == "GUILD_DELETE" {
-					delete(c.gldCache, parsed.ID)
-				} else {
-					c.gldCache[parsed.ID] = parsed
 				}
 				c.GuildParseWS(msg.Type, parsed)
 			case "CHANNEL_CREATE","CHANNEL_UPDATE","CHANNEL_DELETE":
@@ -621,14 +635,8 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 					continue
 				}
 				if parsed.Private {
-				
 					c.PrivateChannelParseWS(msg.Type, parsed)
 				} else {
-					if msg.Type == "CHANNEL_DELETE" {
-						delete(c.chnCache, parsed.ID)
-					} else {
-						c.chnCache[parsed.ID] = parsed
-					}
 					c.ChannelParseWS(msg.Type, parsed)
 				}
 			case "GUILD_MEMBER_ADD","GUILD_MEMBER_UPDATE","GUILD_MEMBER_REMOVE":

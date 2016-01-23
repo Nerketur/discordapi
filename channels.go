@@ -50,6 +50,10 @@ func (c _chan) FindIdxID(ID string) (int, error) {
 	return -1, IDNotFoundError("id: " + ID)
 }
 
+func (c Discord) Channels() (ret []Channel) {
+	return c.ChanCacheAll()
+}
+
 func (c Discord) SendTyping(chanID string) (err error) {
 	err = c.Post(fmt.Sprintf(ChanTypingURL, chanID), nil, nil)
 	if err != nil {
