@@ -44,7 +44,7 @@ type Discord struct{
 //everything annoying to read, so this stays seperate for now.
 type MessageSend struct{ 
 	Content  string   `json:"content"`
-	Mentions []string `json:"mentions,omitempty"` //deprecatd
+	//Mentions []string `json:"mentions,omitempty"` //deprecatd
 	Nonce    int64    `json:"nonce,string"`
 	Tts      bool     `json:"tts"`
 }
@@ -68,6 +68,40 @@ type Member struct{
 		guildSet map[string]struct{} `json:"-"` // caching purposes
 	}
 
+func (u User) String() (s string) {
+	s = "User info:\n"
+	s += fmt.Sprintln("Username:", u.Username)
+	//Username      string  `json:"username"`
+	s += fmt.Sprintln("Discriminator:", u.Discriminator)
+	//Discriminator string  `json:"-"` //4 digits
+	s += fmt.Sprintln("ID:", u.ID)
+	//ID            string  `json:"id"`
+	if u.Avatar != nil {
+		s += fmt.Sprintln("Av (hex):", *u.Avatar)
+		//Avatar        *string `json:"avatar"` // hex string (can be null)
+	} else {
+		s += "Av: No Avatar"
+	}
+	return
+}
+
+func (m Member) String() (s string) {
+	s = "Member info:\n"
+	s += fmt.Sprintln("GuildID:", m.GuildID)
+	//GuildID string    `json:"guild_id,omitempty"`
+	s += fmt.Sprintln("Joined At:", m.Joined)
+	//Joined  time.Time `json:"joined_at"`
+	s += fmt.Sprintln("Deaf:", m.Deaf)
+	//Deaf    bool      `json:"deaf"`
+	s += fmt.Sprintln("Roles:", m.Roles)
+	//Roles   []string  `json:"roles"`
+	s += fmt.Sprintln("Mute:", m.Mute)
+	//Mute    bool      `json:"mute"`
+	s += fmt.Sprintln("\n", m.User)
+	//User    User      `json:"user"`
+	return
+}
+	
 func (u *User) UnmarshalJSON(raw []byte) (err error) {
 	type user User
 	u1, discInt, discStr := user{}, struct{D int `json:"discriminator"`}{}, struct{D string `json:"discriminator"`}{}
@@ -81,10 +115,10 @@ func (u *User) UnmarshalJSON(raw []byte) (err error) {
 		if err != nil {
 			return
 		} else {
-			u1.Discriminator = fmt.Sprintf("%v", discStr)
+			u1.Discriminator = discStr.D
 		}
 	} else {
-		u1.Discriminator = fmt.Sprintf("%v", discInt)
+		u1.Discriminator = fmt.Sprintf("%v", discInt.D)
 	}
 	
 	*u = User(u1)

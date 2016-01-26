@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"time"
 	"net/url"
+	"regexp"
 )
 
-//TODO: for 0.7.1, add abiltity to change TTS
-//TODO: for 0.7.1, change to use <@ID> only
-//For now, this means SendTextMsg is a workaround
-func (c Discord) SendRawMsg(message, chanID string, ids []string) (resp Message, err error) {
+func (c Discord) SendRawMsg(message, chanID string, tts bool) (resp Message, err error) {
+	if len(message) > 2000 {
+		//TODO: change into error returned
+		message = fmt.Sprintf("Content too long! (by %d chars)", len(message)-2000)
+	}
 	req := MessageSend{
 		Content: message,
-		Mentions: ids,
 		Nonce: time.Now().Unix(), //almost always different.
-		Tts: false,
+		Tts: tts,
 	}
 	err = c.Post(fmt.Sprintf(ChanMsgsURL, chanID), req, &resp)
 	if err != nil {
@@ -24,24 +25,59 @@ func (c Discord) SendRawMsg(message, chanID string, ids []string) (resp Message,
 	fmt.Println("sent message successfully!")
 	return
 }
-func (c Discord) SendMsg(message, chanID string, usrs []User) (Message, error) {
-	//way 1.) look for @name and see if any users match the name
-	//way 2.) use a passed in []User to mention
-	//for now useway 2
-	size := 0
-	if usrs != nil {
-		size = len(usrs)
-	}
-	ment := make([]string, size)
-	if usrs != nil {
-		for i, u := range usrs {
-			ment[i] = u.ID
+
+func (c Discord) replName2ID(match string) string {
+	kind := string(match[:1])
+	name := string(match[1:len(match)])
+	switch kind {
+	case "@":
+		//does the user exist?
+		if us, err := c.FindNameUserCache(name); err == nil {
+			return fmt.Sprintf("<@%s>", us[0].ID)
+		}
+	case "#": //TODO: fix channels, requires guildID
+		//does the channel exist?
+		if chs, err := c.FindNameChanCache(name); err == nil {
+			return fmt.Sprintf("<#%s>", chs[0].ID)
 		}
 	}
-	return c.SendRawMsg(message, chanID, ment)
+	return match
+}
+func (c Discord) replID2Name(match string) (ret string) {
+	kind := string(match[1:2])
+	ID := string(match[2:len(match)-1])
+	switch kind {
+	case "@":
+		//does the user exist?
+		if u, err := c.UserCache(ID); err != nil {
+			return "@" + u.Username
+		}
+	case "#":
+		//does the channel exist?
+		if ch, err := c.ChanCache(ID); err != nil {
+			return "#" + ch.Name
+		}
+	}
+	return match
+}
+
+/*
+func main() {
+*/
+func (c Discord) SendMsg(message, chanID string, tts bool) (Message, error) {
+	//look for @name and see if any users match the name
+	//look for #name and see if any channels match the name
+	
+	re := regexp.MustCompile(`[@#](\w*)`)
+	message = re.ReplaceAllStringFunc(message, c.replName2ID)
+	
+	return c.SendRawMsg(message, chanID, tts)
 }
 func (c Discord) SendTextMsg(message, chanID string) (Message, error) {
-	return c.SendMsg(message, chanID, nil)
+	return c.SendMsg(message, chanID, false)
+}
+func (c Discord) SendSpeechMsg(message, chanID string) (Message, error) {
+	return c.SendMsg(message, chanID, true)
 }
 func (c Discord) GetMsgs(chanID, before, after string, limit int) ([]Message, error) {
 	resp := make([]Message, 0)
@@ -83,7 +119,6 @@ func (c Discord) EditMsg(msg Message, newMsg string, usrs []User) (Message, erro
 	//need messageID and channelID
 	req := MessageSend{
 		Content: newMsg,
-		Mentions: ment,
 	}
 	resp := Message{}
 	err := c.Patch(fmt.Sprintf(MsgURL, msg.ChanID, msg.ID), req, &resp)

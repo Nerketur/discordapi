@@ -62,7 +62,7 @@ func (c Discord) GuildMembers(guildID string) (resp []Member, err error) {
 }
 
 func (c Discord) GuildChannels(guildID string) (ret []Channel, err error) {
-	ret = c.GuildChanCache(guildID)
+	ret = c.GuildCacheChans(guildID)
 	if len(ret) == 0 {
 		ret, err = c.GuildChannelsRest(guildID)
 	}

@@ -724,7 +724,7 @@ func (c *Discord) WSProcess(con *websocket.Conn, msgSend, msgRead chan WSMsg, CB
 			close(c.sigStop)
 			<-sendDone
 			<-readDone
-			//savfe to exit, but we restart connection
+			//safe to exit, but we restart connection
 			dialer := websocket.Dialer{}
 			conNew, resp, err := dialer.Dial(msg.Data.(GATEWAY_REDIRECT).URL, nil)
 			defer conNew.Close()
@@ -785,6 +785,12 @@ func (c *Discord) wsUpdatePres2(rep PRESENCE_UPDATE) (p WSPres, err error) {
 	pres, err = _pres(g.Presences).FindIdx(need.User.ID)
 	if err != nil {
 		fmt.Println("pres update warning:", err)
+		//make sure the user exists
+		_, err = c.UserCache(need.User.ID)
+		if err != nil {
+			fmt.Println("pres update: ERROR", err)
+			return
+		}
 		pres = len(g.Presences)
 		g.Presences = append(g.Presences, WSPres{})
 	}

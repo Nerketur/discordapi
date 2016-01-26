@@ -45,7 +45,7 @@ func (g Guild) GuildCacheMembers() (ret []Member) {
 	}
 	return
 }
-func (c Discord) GuildChanCache(guildID string) (ret []Channel) {
+func (c Discord) GuildCacheChans(guildID string) (ret []Channel) {
 	for _, val := range c.chnCache {
 		if val.GuildID == guildID {
 			ret = append(ret, val)
